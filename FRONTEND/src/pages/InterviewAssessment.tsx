@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Sparkles, Loader2, Play, ChevronRight, Briefcase, GraduationCap, Code, AlertCircle, Key, Download, RefreshCw, Zap } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { Sparkles, Loader2, Play, ChevronRight, Briefcase, GraduationCap, Code, AlertCircle, Key, Download, RefreshCw, Zap, Eye, EyeOff, Check, X, Mic, Square, Volume2, SkipForward } from 'lucide-react';
 
 export default function AIInterviewGenerator() {
   const [loading, setLoading] = useState(false);
@@ -8,6 +8,17 @@ export default function AIInterviewGenerator() {
   const [error, setError] = useState('');
   const [apiKey, setApiKey] = useState('');
   const [showApiKeyInput, setShowApiKeyInput] = useState(false);
+  const [apiKeyValid, setApiKeyValid] = useState(null);
+  
+  // Interview state
+  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
+  const [answers, setAnswers] = useState([]);
+  const [isRecording, setIsRecording] = useState(false);
+  const [currentTranscript, setCurrentTranscript] = useState('');
+  const [isSpeaking, setIsSpeaking] = useState(false);
+  
+  const recognitionRef = useRef(null);
+  const synthRef = useRef(null);
   
   const [formData, setFormData] = useState({
     jobRole: '',
@@ -21,28 +32,110 @@ export default function AIInterviewGenerator() {
     }
   });
 
+  // Load API key from memory on mount
+  useEffect(() => {
+    const savedKey = sessionStorage.getItem('groq_api_key');
+    if (savedKey) {
+      setApiKey(savedKey);
+      setApiKeyValid(true);
+    }
+    
+    // Initialize Speech Recognition
+    if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      recognitionRef.current = new SpeechRecognition();
+      recognitionRef.current.continuous = true;
+      recognitionRef.current.interimResults = true;
+      
+      recognitionRef.current.onresult = (event) => {
+        let transcript = '';
+        for (let i = event.resultIndex; i < event.results.length; i++) {
+          transcript += event.results[i][0].transcript;
+        }
+        setCurrentTranscript(transcript);
+      };
+      
+      recognitionRef.current.onerror = (event) => {
+        console.error('Speech recognition error:', event.error);
+        setIsRecording(false);
+      };
+      
+      recognitionRef.current.onend = () => {
+        setIsRecording(false);
+      };
+    }
+    
+    // Initialize Speech Synthesis
+    synthRef.current = window.speechSynthesis;
+    
+    return () => {
+      if (recognitionRef.current) {
+        recognitionRef.current.stop();
+      }
+      if (synthRef.current) {
+        synthRef.current.cancel();
+      }
+    };
+  }, []);
+
+  // Save API key to session storage when it changes
+  useEffect(() => {
+    if (apiKey && apiKeyValid) {
+      sessionStorage.setItem('groq_api_key', apiKey);
+    }
+  }, [apiKey, apiKeyValid]);
+
+  const validateApiKey = async () => {
+    if (!apiKey.trim()) {
+      setApiKeyValid(false);
+      return false;
+    }
+
+    try {
+      const response = await fetch('https://api.groq.com/openai/v1/models', {
+        headers: {
+          'Authorization': `Bearer ${apiKey}`
+        }
+      });
+      
+      const isValid = response.ok;
+      setApiKeyValid(isValid);
+      return isValid;
+    } catch (err) {
+      setApiKeyValid(false);
+      return false;
+    }
+  };
+
   const generateWithGroq = async () => {
     const selectedTypes = Object.entries(formData.questionTypes)
       .filter(([_, enabled]) => enabled)
       .map(([type, _]) => type)
       .join(', ');
 
-    const systemPrompt = `You are an expert interview question generator. Generate ONLY the questions in this exact format:
-1. Question text? (Type: technical)
-2. Question text? (Type: behavioral)
-3. Question text? (Type: hr)`;
+    const systemPrompt = `You are an expert interview question generator. Generate professional interview questions in this exact format:
+1. Question text here? (Type: technical)
+2. Question text here? (Type: behavioral)
+3. Question text here? (Type: hr)
+
+Rules:
+- Each question must be clear, professional, and relevant
+- Questions should be 10-30 words long
+- Always end with a question mark
+- Match the question type exactly to one of: technical, behavioral, or hr`;
 
     const userPrompt = `Generate exactly ${formData.questionCount} professional interview questions for a ${formData.jobRole} position at ${formData.experienceLevel} level.
 
-Skills: ${formData.skills || 'general skills'}
-Types: ${selectedTypes}
+Skills to focus on: ${formData.skills || 'general skills for this role'}
+Question types needed: ${selectedTypes}
 
-Generate ${formData.questionCount} questions now in the exact format shown.`;
+Generate ${formData.questionCount} unique questions now in the exact numbered format with type labels.`;
 
     const models = [
       'llama-3.3-70b-versatile',
       'llama-3.1-70b-versatile', 
-      'gemma2-9b-it'
+      'gemma2-9b-it',
+      'mixtral-8x7b-32768'
     ];
 
     let lastError = null;
@@ -61,14 +154,15 @@ Generate ${formData.questionCount} questions now in the exact format shown.`;
               { role: 'system', content: systemPrompt },
               { role: 'user', content: userPrompt }
             ],
-            temperature: 0.7,
-            max_tokens: 1500,
-            top_p: 0.9
+            temperature: 0.8,
+            max_tokens: 2000,
+            top_p: 0.95
           }),
           signal: AbortSignal.timeout(30000)
         });
 
         if (response.status === 401) {
+          setApiKeyValid(false);
           throw new Error('Invalid API key. Please check your Groq API key.');
         }
 
@@ -86,7 +180,7 @@ Generate ${formData.questionCount} questions now in the exact format shown.`;
         if (err.message.includes('Invalid API key') || err.message.includes('Rate limit')) {
           throw err;
         }
-        if (err.name === 'AbortError') {
+        if (err.name === 'AbortError' || err.name === 'TimeoutError') {
           throw new Error('Request timed out. Please try again.');
         }
         lastError = err.message;
@@ -102,6 +196,7 @@ Generate ${formData.questionCount} questions now in the exact format shown.`;
     const parsedQuestions = [];
     
     lines.forEach((line) => {
+      // Match numbered questions with optional type labels
       const match = line.match(/^(\d+)\.\s*(.+?)(?:\s*\(Type:\s*(\w+)\))?\.?\s*$/i);
       
       if (match && match[2].length > 15) {
@@ -112,11 +207,14 @@ Generate ${formData.questionCount} questions now in the exact format shown.`;
           ? questionText 
           : questionText + '?';
         
+        // Validate type
+        const validType = ['technical', 'behavioral', 'hr'].includes(type) ? type : 'behavioral';
+        
         parsedQuestions.push({
           id: `q-${Date.now()}-${parsedQuestions.length}`,
           question: formattedQuestion,
-          type: ['technical', 'behavioral', 'hr'].includes(type) ? type : 'behavioral',
-          expectedDuration: type === 'technical' ? 240 : 180,
+          type: validType,
+          expectedDuration: validType === 'technical' ? 240 : 180,
           category: 'AI Generated',
           difficulty: formData.experienceLevel
         });
@@ -187,6 +285,24 @@ Generate ${formData.questionCount} questions now in the exact format shown.`;
         type: 'behavioral',
         expectedDuration: 180,
         category: 'Growth Mindset'
+      },
+      {
+        question: `What strategies do you use to debug complex issues in ${formData.jobRole} work?`,
+        type: 'technical',
+        expectedDuration: 240,
+        category: 'Problem Solving'
+      },
+      {
+        question: 'Describe a situation where you had to adapt to significant change. How did you handle it?',
+        type: 'behavioral',
+        expectedDuration: 180,
+        category: 'Adaptability'
+      },
+      {
+        question: 'What are your career goals for the next 3-5 years?',
+        type: 'hr',
+        expectedDuration: 120,
+        category: 'Career Goals'
       }
     ];
 
@@ -195,7 +311,10 @@ Generate ${formData.questionCount} questions now in the exact format shown.`;
       .map(([type, _]) => type);
 
     const filtered = fallbackPool.filter(q => enabledTypes.includes(q.type));
-    const selected = filtered.slice(0, formData.questionCount);
+    
+    // Shuffle and select
+    const shuffled = filtered.sort(() => Math.random() - 0.5);
+    const selected = shuffled.slice(0, formData.questionCount);
 
     return selected.map((q, idx) => ({
       ...q,
@@ -222,6 +341,13 @@ Generate ${formData.questionCount} questions now in the exact format shown.`;
       return;
     }
 
+    // Validate API key first
+    const isValid = await validateApiKey();
+    if (!isValid) {
+      setError('Invalid API key. Please check your key and try again.');
+      return;
+    }
+
     setLoading(true);
     setStep('generating');
     setError('');
@@ -233,6 +359,11 @@ Generate ${formData.questionCount} questions now in the exact format shown.`;
       if (parsedQuestions.length === 0) {
         setError('AI generated invalid format. Using fallback questions.');
         setQuestions(getFallbackQuestions());
+      } else if (parsedQuestions.length < formData.questionCount) {
+        setError(`AI generated ${parsedQuestions.length} questions instead of ${formData.questionCount}. Adding fallback questions.`);
+        const fallback = getFallbackQuestions();
+        const combined = [...parsedQuestions, ...fallback].slice(0, formData.questionCount);
+        setQuestions(combined);
       } else {
         setQuestions(parsedQuestions);
       }
@@ -248,17 +379,150 @@ Generate ${formData.questionCount} questions now in the exact format shown.`;
   };
 
   const handleStartInterview = () => {
-    console.log('Starting interview with questions:', questions);
-    alert('Interview would start here! These questions would be passed to your InterviewAssessment component.');
+    if (questions.length === 0) return;
+    setStep('interview');
+    setCurrentQuestionIndex(0);
+    setAnswers([]);
+    setCurrentTranscript('');
+    
+    // Speak the first question
+    setTimeout(() => speakQuestion(questions[0].question), 500);
   };
-
-  const exportQuestions = () => {
-    const dataStr = JSON.stringify(questions, null, 2);
+  
+  const speakQuestion = (text) => {
+    if (!synthRef.current) return;
+    
+    synthRef.current.cancel();
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.rate = 0.9;
+    utterance.pitch = 1;
+    
+    utterance.onstart = () => setIsSpeaking(true);
+    utterance.onend = () => setIsSpeaking(false);
+    
+    synthRef.current.speak(utterance);
+  };
+  
+  const startRecording = () => {
+    if (!recognitionRef.current) {
+      alert('Speech recognition is not supported in your browser. Please use Chrome or Edge.');
+      return;
+    }
+    
+    setCurrentTranscript('');
+    setIsRecording(true);
+    recognitionRef.current.start();
+  };
+  
+  const stopRecording = () => {
+    if (recognitionRef.current && isRecording) {
+      recognitionRef.current.stop();
+      setIsRecording(false);
+    }
+  };
+  
+  const saveAnswer = () => {
+    if (!currentTranscript.trim()) {
+      setError('Please record an answer before proceeding');
+      return;
+    }
+    
+    const newAnswer = {
+      questionId: questions[currentQuestionIndex].id,
+      question: questions[currentQuestionIndex].question,
+      answer: currentTranscript,
+      timestamp: new Date().toISOString(),
+      duration: 0 // Could track actual duration if needed
+    };
+    
+    setAnswers([...answers, newAnswer]);
+    setCurrentTranscript('');
+    setError('');
+    
+    // Move to next question or finish
+    if (currentQuestionIndex < questions.length - 1) {
+      const nextIndex = currentQuestionIndex + 1;
+      setCurrentQuestionIndex(nextIndex);
+      setTimeout(() => speakQuestion(questions[nextIndex].question), 500);
+    } else {
+      completeInterview();
+    }
+  };
+  
+  const skipQuestion = () => {
+    const newAnswer = {
+      questionId: questions[currentQuestionIndex].id,
+      question: questions[currentQuestionIndex].question,
+      answer: '[Skipped]',
+      timestamp: new Date().toISOString(),
+      duration: 0
+    };
+    
+    setAnswers([...answers, newAnswer]);
+    setCurrentTranscript('');
+    setError('');
+    
+    if (currentQuestionIndex < questions.length - 1) {
+      const nextIndex = currentQuestionIndex + 1;
+      setCurrentQuestionIndex(nextIndex);
+      setTimeout(() => speakQuestion(questions[nextIndex].question), 500);
+    } else {
+      completeInterview();
+    }
+  };
+  
+  const completeInterview = () => {
+    setStep('complete');
+    if (synthRef.current) {
+      synthRef.current.cancel();
+    }
+    if (recognitionRef.current && isRecording) {
+      recognitionRef.current.stop();
+    }
+  };
+  
+  const exportInterview = () => {
+    const exportData = {
+      metadata: {
+        jobRole: formData.jobRole,
+        experienceLevel: formData.experienceLevel,
+        skills: formData.skills,
+        completedAt: new Date().toISOString(),
+        totalQuestions: questions.length,
+        answeredQuestions: answers.filter(a => a.answer !== '[Skipped]').length
+      },
+      questions: questions,
+      answers: answers
+    };
+    
+    const dataStr = JSON.stringify(exportData, null, 2);
     const dataBlob = new Blob([dataStr], { type: 'application/json' });
     const url = URL.createObjectURL(dataBlob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `interview-questions-${formData.jobRole.replace(/\s+/g, '-')}.json`;
+    link.download = `interview-${formData.jobRole.replace(/\s+/g, '-')}-${Date.now()}.json`;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const exportQuestions = () => {
+    const exportData = {
+      metadata: {
+        jobRole: formData.jobRole,
+        experienceLevel: formData.experienceLevel,
+        skills: formData.skills,
+        generatedAt: new Date().toISOString(),
+        questionCount: questions.length
+      },
+      questions: questions
+    };
+    
+    const dataStr = JSON.stringify(exportData, null, 2);
+    const dataBlob = new Blob([dataStr], { type: 'application/json' });
+    const url = URL.createObjectURL(dataBlob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `interview-questions-${formData.jobRole.replace(/\s+/g, '-')}-${Date.now()}.json`;
     link.click();
     URL.revokeObjectURL(url);
   };
@@ -292,9 +556,8 @@ Generate ${formData.questionCount} questions now in the exact format shown.`;
           <h1 className="text-4xl font-bold text-gray-900 mb-3">
             AI Interview Question Generator
           </h1>
-          <p className="text-lg text-gray-600 flex items-center justify-center gap-2">
-            <Zap className="w-5 h-5 text-yellow-500" />
-            Powered by Groq AI (Lightning Fast & Free)
+          <p className="text-lg text-gray-600">
+            Create personalized interview questions with AI
           </p>
         </div>
 
@@ -305,20 +568,11 @@ Generate ${formData.questionCount} questions now in the exact format shown.`;
               <div className="text-sm text-blue-900 flex-1">
                 <p className="font-semibold mb-2">Quick Setup (30 seconds):</p>
                 <ol className="list-decimal list-inside space-y-1 ml-2 mb-3">
-                  <li>Go to <a href="https://console.groq.com/keys" target="_blank" rel="noopener noreferrer" className="underline font-medium">console.groq.com/keys</a></li>
+                  <li>Go to <a href="https://console.groq.com/keys" target="_blank" rel="noopener noreferrer" className="underline font-medium hover:text-blue-700">console.groq.com/keys</a></li>
                   <li>Sign up with Google/GitHub (completely free)</li>
                   <li>Click "Create API Key" and copy it</li>
                   <li>Paste it below</li>
                 </ol>
-                <div className="bg-blue-100 px-3 py-2 rounded mb-3">
-                  <p className="text-xs font-medium">Why Groq?</p>
-                  <ul className="text-xs mt-1 space-y-1">
-                    <li>Lightning fast responses (2-5 seconds)</li>
-                    <li>Free tier with generous limits</li>
-                    <li>No waiting for models to load</li>
-                    <li>Secure and reliable</li>
-                  </ul>
-                </div>
 
                 <div className="mt-4">
                   <label className="flex items-center text-sm font-medium text-blue-900 mb-2">
@@ -326,24 +580,40 @@ Generate ${formData.questionCount} questions now in the exact format shown.`;
                     Groq API Key
                   </label>
                   <div className="flex space-x-2">
-                    <input
-                      type={showApiKeyInput ? "text" : "password"}
-                      value={apiKey}
-                      onChange={(e) => setApiKey(e.target.value)}
-                      placeholder="gsk_..."
-                      className="flex-1 px-4 py-2 border border-blue-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
-                    />
+                    <div className="flex-1 relative">
+                      <input
+                        type={showApiKeyInput ? "text" : "password"}
+                        value={apiKey}
+                        onChange={(e) => {
+                          setApiKey(e.target.value);
+                          setApiKeyValid(null);
+                        }}
+                        onBlur={validateApiKey}
+                        placeholder="gsk_..."
+                        className="w-full px-4 py-2 pr-10 border border-blue-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
+                      />
+                      {apiKeyValid !== null && (
+                        <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                          {apiKeyValid ? (
+                            <Check className="w-5 h-5 text-green-600" />
+                          ) : (
+                            <X className="w-5 h-5 text-red-600" />
+                          )}
+                        </div>
+                      )}
+                    </div>
                     {apiKey && (
                       <button
                         onClick={() => setShowApiKeyInput(!showApiKeyInput)}
-                        className="px-4 py-2 bg-blue-100 border border-blue-300 rounded-lg hover:bg-blue-200 text-sm font-medium"
+                        className="px-4 py-2 bg-blue-100 border border-blue-300 rounded-lg hover:bg-blue-200 text-sm font-medium flex items-center gap-2"
                       >
+                        {showApiKeyInput ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                         {showApiKeyInput ? 'Hide' : 'Show'}
                       </button>
                     )}
                   </div>
                   <p className="mt-2 text-xs text-blue-800">
-                    Your key is stored in memory only and sent directly to Groq. Never shared.
+                    🔒 Your key is stored in memory only and sent directly to Groq. Never shared.
                   </p>
                 </div>
               </div>
@@ -359,9 +629,9 @@ Generate ${formData.questionCount} questions now in the exact format shown.`;
               </h2>
 
               {error && (
-                <div className="mb-6 bg-yellow-50 border border-yellow-200 rounded-lg p-4 flex items-start">
-                  <AlertCircle className="w-5 h-5 text-yellow-600 mt-0.5 mr-3 flex-shrink-0" />
-                  <p className="text-sm text-yellow-800">{error}</p>
+                <div className="mb-6 bg-red-50 border border-red-200 rounded-lg p-4 flex items-start">
+                  <AlertCircle className="w-5 h-5 text-red-600 mt-0.5 mr-3 flex-shrink-0" />
+                  <p className="text-sm text-red-800">{error}</p>
                 </div>
               )}
 
@@ -426,7 +696,7 @@ Generate ${formData.questionCount} questions now in the exact format shown.`;
                     onChange={(e) => setFormData({ ...formData, questionCount: parseInt(e.target.value) })}
                     className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   >
-                    {[3, 5, 7, 10].map(num => (
+                    {[3, 5, 7, 10, 15].map(num => (
                       <option key={num} value={num}>{num} Questions</option>
                     ))}
                   </select>
@@ -438,7 +708,7 @@ Generate ${formData.questionCount} questions now in the exact format shown.`;
                   </label>
                   <div className="space-y-2">
                     {Object.entries(formData.questionTypes).map(([type, enabled]) => (
-                      <label key={type} className="flex items-center p-3 border border-gray-200 rounded-lg hover:bg-gray-50 cursor-pointer">
+                      <label key={type} className="flex items-center p-3 border border-gray-200 rounded-lg hover:bg-gray-50 cursor-pointer transition-colors">
                         <input
                           type="checkbox"
                           checked={enabled}
@@ -461,7 +731,7 @@ Generate ${formData.questionCount} questions now in the exact format shown.`;
 
                 <button
                   onClick={generateQuestions}
-                  disabled={loading}
+                  disabled={loading || !apiKey.trim()}
                   className="w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white font-semibold py-4 px-6 rounded-lg hover:from-blue-700 hover:to-purple-700 transition-all flex items-center justify-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-xl"
                 >
                   {loading ? (
@@ -572,6 +842,21 @@ Generate ${formData.questionCount} questions now in the exact format shown.`;
                 ))}
               </div>
 
+              <div className="bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg p-4 mb-6">
+                <div className="flex items-start">
+                  <AlertCircle className="w-5 h-5 text-blue-600 mt-0.5 mr-3 flex-shrink-0" />
+                  <div className="text-sm text-blue-900">
+                    <p className="font-semibold mb-1">Interview Tips:</p>
+                    <ul className="space-y-1 text-xs">
+                      <li>• Review each question and prepare talking points</li>
+                      <li>• Use the STAR method for behavioral questions (Situation, Task, Action, Result)</li>
+                      <li>• Practice your responses out loud before the actual interview</li>
+                      <li>• Prepare specific examples from your experience</li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+
               <button
                 onClick={handleStartInterview}
                 className="w-full bg-gradient-to-r from-green-600 to-blue-600 text-white font-semibold py-4 px-6 rounded-lg hover:from-green-700 hover:to-blue-700 transition-all flex items-center justify-center space-x-2 shadow-lg hover:shadow-xl"
@@ -580,6 +865,226 @@ Generate ${formData.questionCount} questions now in the exact format shown.`;
                 <span>Start Interview</span>
                 <ChevronRight className="w-5 h-5" />
               </button>
+            </div>
+          </div>
+        )}
+
+        {step === 'interview' && (
+          <div className="max-w-4xl mx-auto">
+            <div className="bg-white rounded-2xl shadow-lg border border-gray-200 p-8">
+              <div className="mb-6">
+                <div className="flex items-center justify-between mb-4">
+                  <div>
+                    <h2 className="text-2xl font-bold text-gray-900">
+                      Interview in Progress
+                    </h2>
+                    <p className="text-gray-600">
+                      Question {currentQuestionIndex + 1} of {questions.length}
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-sm text-gray-500">Progress</div>
+                    <div className="text-2xl font-bold text-blue-600">
+                      {Math.round(((currentQuestionIndex) / questions.length) * 100)}%
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="w-full bg-gray-200 rounded-full h-2">
+                  <div 
+                    className="bg-gradient-to-r from-blue-600 to-purple-600 h-2 rounded-full transition-all duration-300"
+                    style={{ width: `${((currentQuestionIndex) / questions.length) * 100}%` }}
+                  ></div>
+                </div>
+              </div>
+
+              {error && (
+                <div className="mb-6 bg-red-50 border border-red-200 rounded-lg p-4 flex items-start">
+                  <AlertCircle className="w-5 h-5 text-red-600 mt-0.5 mr-3 flex-shrink-0" />
+                  <p className="text-sm text-red-800">{error}</p>
+                </div>
+              )}
+
+              <div className="bg-gradient-to-r from-blue-50 to-purple-50 rounded-xl p-6 mb-6">
+                <div className="flex items-start justify-between mb-4">
+                  <span className={`text-xs px-3 py-1 rounded-full border font-medium ${getTypeColor(questions[currentQuestionIndex].type)}`}>
+                    {questions[currentQuestionIndex].type}
+                  </span>
+                  <button
+                    onClick={() => speakQuestion(questions[currentQuestionIndex].question)}
+                    disabled={isSpeaking}
+                    className="flex items-center space-x-2 text-sm text-blue-600 hover:text-blue-700 disabled:opacity-50"
+                  >
+                    <Volume2 className="w-4 h-4" />
+                    <span>{isSpeaking ? 'Speaking...' : 'Repeat Question'}</span>
+                  </button>
+                </div>
+                
+                <p className="text-xl text-gray-900 font-medium leading-relaxed">
+                  {questions[currentQuestionIndex].question}
+                </p>
+              </div>
+
+              <div className="mb-6">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="text-lg font-semibold text-gray-900">Your Answer</h3>
+                  <span className="text-sm text-gray-500">
+                    {currentTranscript.split(' ').filter(w => w).length} words
+                  </span>
+                </div>
+                
+                <div className="border-2 border-gray-300 rounded-lg p-4 min-h-32 bg-white">
+                  {currentTranscript ? (
+                    <p className="text-gray-900 whitespace-pre-wrap">{currentTranscript}</p>
+                  ) : (
+                    <p className="text-gray-400 italic">Click the microphone button to start recording your answer...</p>
+                  )}
+                </div>
+                
+                <div className="mt-4 flex items-center justify-center space-x-4">
+                  {!isRecording ? (
+                    <button
+                      onClick={startRecording}
+                      className="flex items-center space-x-2 bg-red-600 text-white px-6 py-3 rounded-lg hover:bg-red-700 transition-all shadow-lg"
+                    >
+                      <Mic className="w-5 h-5" />
+                      <span>Start Recording</span>
+                    </button>
+                  ) : (
+                    <button
+                      onClick={stopRecording}
+                      className="flex items-center space-x-2 bg-gray-800 text-white px-6 py-3 rounded-lg hover:bg-gray-900 transition-all shadow-lg animate-pulse"
+                    >
+                      <Square className="w-5 h-5" />
+                      <span>Stop Recording</span>
+                    </button>
+                  )}
+                  
+                  {isRecording && (
+                    <div className="flex items-center space-x-2 text-red-600">
+                      <div className="w-3 h-3 bg-red-600 rounded-full animate-pulse"></div>
+                      <span className="text-sm font-medium">Recording...</span>
+                    </div>
+                  )}
+                </div>
+                
+                <p className="text-xs text-gray-500 text-center mt-3">
+                  {!('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) 
+                    ? 'Speech recognition not supported. Please use Chrome or Edge browser.'
+                    : 'Speak clearly into your microphone. Your speech will be converted to text automatically.'
+                  }
+                </p>
+              </div>
+
+              <div className="flex items-center space-x-3">
+                <button
+                  onClick={skipQuestion}
+                  className="flex-1 border-2 border-gray-300 text-gray-700 px-6 py-3 rounded-lg hover:bg-gray-50 transition-all flex items-center justify-center space-x-2"
+                >
+                  <SkipForward className="w-5 h-5" />
+                  <span>Skip Question</span>
+                </button>
+                
+                <button
+                  onClick={saveAnswer}
+                  disabled={!currentTranscript.trim()}
+                  className="flex-1 bg-gradient-to-r from-green-600 to-blue-600 text-white px-6 py-3 rounded-lg hover:from-green-700 hover:to-blue-700 transition-all flex items-center justify-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg"
+                >
+                  <span>{currentQuestionIndex < questions.length - 1 ? 'Next Question' : 'Finish Interview'}</span>
+                  <ChevronRight className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {step === 'complete' && (
+          <div className="max-w-4xl mx-auto">
+            <div className="bg-white rounded-2xl shadow-lg border border-gray-200 p-8">
+              <div className="text-center mb-8">
+                <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-green-600 to-blue-600 rounded-full mb-4">
+                  <Check className="w-8 h-8 text-white" />
+                </div>
+                <h2 className="text-3xl font-bold text-gray-900 mb-2">
+                  Interview Complete!
+                </h2>
+                <p className="text-gray-600">
+                  You've answered {answers.filter(a => a.answer !== '[Skipped]').length} out of {questions.length} questions
+                </p>
+              </div>
+
+              <div className="bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg p-6 mb-6">
+                <h3 className="font-semibold text-gray-900 mb-4">Interview Summary</h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <div className="text-sm text-gray-600">Position</div>
+                    <div className="font-medium text-gray-900">{formData.jobRole}</div>
+                  </div>
+                  <div>
+                    <div className="text-sm text-gray-600">Level</div>
+                    <div className="font-medium text-gray-900 capitalize">{formData.experienceLevel}</div>
+                  </div>
+                  <div>
+                    <div className="text-sm text-gray-600">Questions Answered</div>
+                    <div className="font-medium text-gray-900">
+                      {answers.filter(a => a.answer !== '[Skipped]').length} / {questions.length}
+                    </div>
+                  </div>
+                  <div>
+                    <div className="text-sm text-gray-600">Completion Rate</div>
+                    <div className="font-medium text-gray-900">
+                      {Math.round((answers.filter(a => a.answer !== '[Skipped]').length / questions.length) * 100)}%
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-4 mb-6">
+                <h3 className="font-semibold text-gray-900">Your Answers</h3>
+                {answers.map((answer, idx) => (
+                  <div key={idx} className="border border-gray-200 rounded-lg p-4 bg-gray-50">
+                    <div className="flex items-start justify-between mb-2">
+                      <span className="text-sm font-semibold text-gray-500">Question {idx + 1}</span>
+                      {answer.answer === '[Skipped]' && (
+                        <span className="text-xs px-2 py-1 bg-yellow-100 text-yellow-800 rounded">Skipped</span>
+                      )}
+                    </div>
+                    <p className="text-gray-900 font-medium mb-2">{answer.question}</p>
+                    <p className="text-gray-700 text-sm whitespace-pre-wrap">
+                      {answer.answer === '[Skipped]' ? (
+                        <span className="italic text-gray-500">Question was skipped</span>
+                      ) : (
+                        answer.answer
+                      )}
+                    </p>
+                  </div>
+                ))}
+              </div>
+
+              <div className="flex items-center space-x-3">
+                <button
+                  onClick={exportInterview}
+                  className="flex-1 border-2 border-gray-300 text-gray-700 px-6 py-3 rounded-lg hover:bg-gray-50 transition-all flex items-center justify-center space-x-2"
+                >
+                  <Download className="w-5 h-5" />
+                  <span>Export Interview</span>
+                </button>
+                
+                <button
+                  onClick={() => {
+                    setStep('setup');
+                    setQuestions([]);
+                    setAnswers([]);
+                    setCurrentQuestionIndex(0);
+                    setCurrentTranscript('');
+                    setError('');
+                  }}
+                  className="flex-1 bg-gradient-to-r from-blue-600 to-purple-600 text-white px-6 py-3 rounded-lg hover:from-blue-700 hover:to-purple-700 transition-all flex items-center justify-center space-x-2 shadow-lg"
+                >
+                  <RefreshCw className="w-5 h-5" />
+                  <span>Start New Interview</span>
+                </button>
+              </div>
             </div>
           </div>
         )}
