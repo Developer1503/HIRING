@@ -1,102 +1,17 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { 
-  Clock, 
-  Save, 
-  Play, 
-  RotateCcw, 
-  Send, 
-  ChevronLeft, 
-  ChevronRight,
-  Code,
-  CheckCircle,
-  Dot,
-  XCircle,
-  AlertCircle
+  Clock, Play, RotateCcw, Send, ChevronLeft, ChevronRight, Code, CheckCircle, 
+  Dot, XCircle, AlertCircle, Sparkles, Key, Loader2, Brain, Download
 } from 'lucide-react';
 
-// Mock data
-const dsaQuestions = [
-  {
-    id: 1,
-    title: "Two Sum",
-    difficulty: "easy",
-    tags: ["Array", "Hash Table"],
-    statement: "Given an array of integers nums and an integer target, return indices of the two numbers such that they add up to target. You may assume that each input would have exactly one solution, and you may not use the same element twice.",
-    examples: [
-      { input: "nums = [2,7,11,15], target = 9", output: "[0,1]" },
-      { input: "nums = [3,2,4], target = 6", output: "[1,2]" }
-    ],
-    constraints: [
-      "2 <= nums.length <= 10^4",
-      "-10^9 <= nums[i] <= 10^9",
-      "-10^9 <= target <= 10^9"
-    ],
-    template: {
-      javascript: "function twoSum(nums, target) {\n  // Write your code here\n  \n}",
-      python: "def two_sum(nums, target):\n    # Write your code here\n    pass",
-      java: "class Solution {\n    public int[] twoSum(int[] nums, int target) {\n        // Write your code here\n        \n    }\n}",
-      cpp: "class Solution {\npublic:\n    vector<int> twoSum(vector<int>& nums, int target) {\n        // Write your code here\n        \n    }\n};"
-    },
-    testCases: [
-      { input: { nums: [2, 7, 11, 15], target: 9 }, expected: [0, 1] },
-      { input: { nums: [3, 2, 4], target: 6 }, expected: [1, 2] },
-      { input: { nums: [3, 3], target: 6 }, expected: [0, 1] }
-    ]
-  },
-  {
-    id: 2,
-    title: "Valid Parentheses",
-    difficulty: "easy",
-    tags: ["String", "Stack"],
-    statement: "Given a string s containing just the characters '(', ')', '{', '}', '[' and ']', determine if the input string is valid. An input string is valid if open brackets are closed by the same type of brackets and in the correct order.",
-    examples: [
-      { input: "s = \"()\"", output: "true" },
-      { input: "s = \"()[]{}\"", output: "true" },
-      { input: "s = \"(]\"", output: "false" }
-    ],
-    constraints: [
-      "1 <= s.length <= 10^4",
-      "s consists of parentheses only '()[]{}'."
-    ],
-    template: {
-      javascript: "function isValid(s) {\n  // Write your code here\n  \n}",
-      python: "def is_valid(s):\n    # Write your code here\n    pass",
-      java: "class Solution {\n    public boolean isValid(String s) {\n        // Write your code here\n        \n    }\n}",
-      cpp: "class Solution {\npublic:\n    bool isValid(string s) {\n        // Write your code here\n        \n    }\n};"
-    },
-    testCases: [
-      { input: { s: "()" }, expected: true },
-      { input: { s: "()[]{}" }, expected: true },
-      { input: { s: "(]" }, expected: false },
-      { input: { s: "([)]" }, expected: false }
-    ]
-  }
-];
-
-// Real code editor component with syntax highlighting
-function CodeEditor({ value, onChange, language }) {
+function CodeEditor({ value, onChange }) {
   const textareaRef = useRef(null);
-  const highlightRef = useRef(null);
   const [lineNumbers, setLineNumbers] = useState([]);
 
   useEffect(() => {
     const lines = value.split('\n').length;
     setLineNumbers(Array.from({ length: lines }, (_, i) => i + 1));
   }, [value]);
-
-  useEffect(() => {
-    if (highlightRef.current && textareaRef.current) {
-      highlightRef.current.scrollTop = textareaRef.current.scrollTop;
-      highlightRef.current.scrollLeft = textareaRef.current.scrollLeft;
-    }
-  }, [value]);
-
-  const handleScroll = (e) => {
-    if (highlightRef.current) {
-      highlightRef.current.scrollTop = e.target.scrollTop;
-      highlightRef.current.scrollLeft = e.target.scrollLeft;
-    }
-  };
 
   const handleKeyDown = (e) => {
     if (e.key === 'Tab') {
@@ -111,156 +26,242 @@ function CodeEditor({ value, onChange, language }) {
     }
   };
 
-  const syntaxHighlight = (code) => {
-    const keywords = {
-      javascript: /\b(function|const|let|var|return|if|else|for|while|class|new|this|import|export|async|await|try|catch|throw|typeof|instanceof)\b/g,
-      python: /\b(def|class|return|if|elif|else|for|while|import|from|as|pass|True|False|None|try|except|raise|with|lambda|yield)\b/g,
-      java: /\b(public|private|protected|class|void|int|return|if|else|for|while|new|static|String|boolean|true|false|null|try|catch|throw|extends|implements)\b/g,
-      cpp: /\b(class|public|private|protected|int|void|return|if|else|for|while|vector|string|bool|true|false|nullptr|try|catch|throw|using|namespace)\b/g,
-    };
-
-    const strings = /(["'`])(?:(?=(\\?))\2.)*?\1/g;
-    const comments = /\/\/.*|\/\*[\s\S]*?\*\/|#.*/g;
-    const numbers = /\b\d+(\.\d+)?\b/g;
-
-    let highlighted = code
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;');
-
-    highlighted = highlighted.replace(comments, '<span style="color: #6a9955;">$&</span>');
-    highlighted = highlighted.replace(strings, '<span style="color: #ce9178;">$&</span>');
-    highlighted = highlighted.replace(keywords[language] || keywords.javascript, '<span style="color: #569cd6;">$&</span>');
-    highlighted = highlighted.replace(numbers, '<span style="color: #b5cea8;">$&</span>');
-
-    return highlighted;
-  };
-
   return (
     <div className="relative w-full h-full flex bg-gray-900">
-      {/* Line numbers */}
-      <div className="flex-shrink-0 w-12 bg-gray-800 text-gray-500 text-right pr-2 pt-4 pb-4 font-mono text-sm select-none overflow-hidden">
+      <div className="flex-shrink-0 w-12 bg-gray-800 text-gray-500 text-right pr-2 pt-4 font-mono text-sm select-none overflow-hidden">
         {lineNumbers.map((num) => (
           <div key={num} className="leading-6">{num}</div>
         ))}
       </div>
-
-      {/* Editor area */}
       <div className="relative flex-1 font-mono text-sm">
-        <div
-          ref={highlightRef}
-          className="absolute inset-0 p-4 overflow-auto pointer-events-none text-gray-300"
-          style={{ whiteSpace: 'pre', wordWrap: 'normal' }}
-        >
-          <div dangerouslySetInnerHTML={{ __html: syntaxHighlight(value) }} />
-        </div>
         <textarea
           ref={textareaRef}
           value={value}
           onChange={(e) => onChange(e.target.value)}
-          onScroll={handleScroll}
           onKeyDown={handleKeyDown}
-          className="absolute inset-0 p-4 bg-transparent text-transparent caret-white overflow-auto resize-none outline-none"
-          style={{ 
-            whiteSpace: 'pre',
-            wordWrap: 'normal',
-            caretColor: 'white'
-          }}
+          className="absolute inset-0 p-4 bg-gray-900 text-gray-100 overflow-auto resize-none outline-none"
+          style={{ whiteSpace: 'pre', wordWrap: 'normal' }}
           spellCheck="false"
+          placeholder="// Write your code here..."
         />
       </div>
     </div>
   );
 }
 
-// Function to execute JavaScript code safely
-function executeJavaScriptCode(code, testCase) {
-  try {
-    const func = new Function('nums', 'target', 's', `
-      ${code}
-      
-      // Determine which function to call
-      if (typeof twoSum !== 'undefined') {
-        return twoSum(nums, target);
-      } else if (typeof isValid !== 'undefined') {
-        return isValid(s);
-      }
-      return undefined;
-    `);
-    
-    const result = func(testCase.input.nums, testCase.input.target, testCase.input.s);
-    return { success: true, result };
-  } catch (error) {
-    return { success: false, error: error.message };
-  }
-}
-
-// Function to compare arrays deeply
-function arraysEqual(a, b) {
-  if (a === b) return true;
-  if (a == null || b == null) return false;
-  if (a.length !== b.length) return false;
-  
-  const sortedA = [...a].sort((x, y) => x - y);
-  const sortedB = [...b].sort((x, y) => x - y);
-  
-  for (let i = 0; i < sortedA.length; i++) {
-    if (sortedA[i] !== sortedB[i]) return false;
-  }
-  return true;
-}
-
-export default function DSAAssessment() {
+export default function AIDSAAssessment() {
+  const [apiKey, setApiKey] = useState('');
+  const [showSetup, setShowSetup] = useState(true);
+  const [questions, setQuestions] = useState([]);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [code, setCode] = useState('');
   const [language, setLanguage] = useState('javascript');
-  const [timeLeft, setTimeLeft] = useState(25 * 60);
+  const [timeLeft, setTimeLeft] = useState(45 * 60);
   const [showOutput, setShowOutput] = useState(false);
   const [testResults, setTestResults] = useState([]);
   const [completedQuestions, setCompletedQuestions] = useState([]);
   const [answers, setAnswers] = useState({});
   const [isRunning, setIsRunning] = useState(false);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [isValidating, setIsValidating] = useState(false);
+  const [aiValidation, setAiValidation] = useState(null);
+  const [difficulty, setDifficulty] = useState('mixed');
+  const [questionCount, setQuestionCount] = useState(3);
 
-  const currentQuestion = dsaQuestions[currentQuestionIndex];
+  const currentQuestion = questions[currentQuestionIndex];
 
   useEffect(() => {
     if (currentQuestion) {
-      const savedAnswer = answers[currentQuestion.id];
-      setCode(savedAnswer || currentQuestion.template[language] || '');
+      const savedAnswer = answers[currentQuestion.id]?.[language];
+      setCode(savedAnswer || currentQuestion.templates?.[language] || currentQuestion.template || '');
+      setShowOutput(false);
+      setTestResults([]);
+      setAiValidation(null);
     }
-  }, [currentQuestion, language]);
+  }, [currentQuestionIndex, currentQuestion, answers, language]);
 
   useEffect(() => {
-    const timer = setInterval(() => {
-      setTimeLeft((prev) => Math.max(0, prev - 1));
-    }, 1000);
-    return () => clearInterval(timer);
-  }, []);
+    if (!showSetup) {
+      const timer = setInterval(() => {
+        setTimeLeft((prev) => Math.max(0, prev - 1));
+      }, 1000);
+      return () => clearInterval(timer);
+    }
+  }, [showSetup]);
 
-  const formatTime = (seconds) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
-  };
-
-  const handleRunCode = () => {
-    if (language !== 'javascript') {
-      setShowOutput(true);
-      setTestResults([{
-        passed: false,
-        error: `Code execution is only supported for JavaScript in this demo. Python, Java, and C++ support requires a backend compiler.`
-      }]);
+  const generateQuestionsWithAI = async () => {
+    if (!apiKey.trim()) {
+      alert('Please enter your Groq API key');
       return;
     }
 
+    setIsGenerating(true);
+
+    const difficultyInstruction = difficulty === 'mixed' 
+      ? 'Mix of easy and medium difficulty' 
+      : `All ${difficulty} difficulty`;
+
+    const prompt = `Generate ${questionCount} coding problems for a DSA assessment. Return ONLY valid JSON array:
+
+[
+  {
+    "id": 1,
+    "title": "Two Sum",
+    "difficulty": "easy",
+    "tags": ["Array", "Hash Table"],
+    "statement": "Given an array of integers nums and an integer target, return indices of the two numbers such that they add up to target.",
+    "examples": [
+      {"input": "nums = [2,7,11,15], target = 9", "output": "[0,1]"}
+    ],
+    "constraints": ["2 <= nums.length <= 10^4"],
+    "templates": {
+      "javascript": "function twoSum(nums, target) { /* code here */ }",
+      "python": "def two_sum(nums, target): pass",
+      "java": "class Solution { public int[] twoSum(int[] nums, int target) { } }",
+      "cpp": "class Solution { public: vector<int> twoSum(vector<int>& nums, int target) { } };"
+    },
+    "testCases": [
+      {"input": {"nums": [2,7,11,15], "target": 9}, "expected": [0,1]}
+    ]
+  }
+]
+
+Requirements: ${difficultyInstruction}, 3 test cases per problem, include templates for all 4 languages`;
+
+    try {
+      const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${apiKey}`
+        },
+        body: JSON.stringify({
+          model: 'llama-3.3-70b-versatile',
+          messages: [
+            { role: 'system', content: 'Generate only valid JSON arrays.' },
+            { role: 'user', content: prompt }
+          ],
+          temperature: 0.8,
+          max_tokens: 4000
+        })
+      });
+
+      if (!response.ok) throw new Error('Failed to generate questions');
+
+      const data = await response.json();
+      let content = data.choices[0]?.message?.content || '';
+      
+      const jsonMatch = content.match(/```(?:json)?\s*(\[[\s\S]*?\])\s*```/) || content.match(/(\[[\s\S]*\])/);
+      if (jsonMatch) content = jsonMatch[1];
+      
+      const generatedQuestions = JSON.parse(content);
+      setQuestions(generatedQuestions);
+      setShowSetup(false);
+      setCode(generatedQuestions[0].templates?.[language] || generatedQuestions[0].template || '');
+    } catch (error) {
+      alert(`Failed: ${error.message}`);
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
+  const validateSolutionWithAI = async (userCode, question) => {
+    setIsValidating(true);
+
+    const prompt = `Analyze this ${language} solution (return JSON only):
+
+Problem: ${question.title}
+Language: ${language}
+Code: ${userCode}
+
+Format:
+{
+  "timeComplexity": "O(n)",
+  "spaceComplexity": "O(1)",
+  "strengths": ["Clear logic"],
+  "improvements": ["Add edge cases"],
+  "bugs": [],
+  "score": 85,
+  "feedback": "Good solution"
+}`;
+
+    try {
+      const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${apiKey}`
+        },
+        body: JSON.stringify({
+          model: 'llama-3.3-70b-versatile',
+          messages: [
+            { role: 'system', content: 'Return only valid JSON.' },
+            { role: 'user', content: prompt }
+          ],
+          temperature: 0.3,
+          max_tokens: 1000
+        })
+      });
+
+      if (!response.ok) throw new Error('Validation failed');
+
+      const data = await response.json();
+      let content = data.choices[0]?.message?.content || '';
+      
+      const jsonMatch = content.match(/```(?:json)?\s*(\{[\s\S]*?\})\s*```/) || content.match(/(\{[\s\S]*\})/);
+      if (jsonMatch) content = jsonMatch[1];
+      
+      setAiValidation(JSON.parse(content));
+    } catch (error) {
+      setAiValidation({
+        feedback: 'AI validation unavailable',
+        score: testResults.every(r => r.passed) ? 100 : 0
+      });
+    } finally {
+      setIsValidating(false);
+    }
+  };
+
+  const executeCode = (code, testCase) => {
+    try {
+      if (language !== 'javascript') {
+        return { 
+          success: false, 
+          error: `Code execution only supports JavaScript. ${language} requires a backend compiler.` 
+        };
+      }
+
+      const functionMatch = code.match(/function\s+(\w+)/);
+      const functionName = functionMatch ? functionMatch[1] : 'solution';
+      const params = Object.keys(testCase.input);
+      const args = Object.values(testCase.input);
+      
+      const func = new Function(...params, `
+        ${code}
+        return ${functionName}(${params.join(', ')});
+      `);
+      
+      return { success: true, result: func(...args) };
+    } catch (error) {
+      return { success: false, error: error.message };
+    }
+  };
+
+  const arraysEqual = (a, b) => {
+    if (a === b) return true;
+    if (!a || !b || a.length !== b.length) return false;
+    const sortedA = [...a].sort((x, y) => x - y);
+    const sortedB = [...b].sort((x, y) => x - y);
+    return sortedA.every((val, i) => val === sortedB[i]);
+  };
+
+  const handleRunCode = () => {
     setIsRunning(true);
     setShowOutput(true);
+    setAiValidation(null);
     
-    const results = currentQuestion.testCases.map((testCase, index) => {
-      const startTime = performance.now();
-      const execution = executeJavaScriptCode(code, testCase);
-      const endTime = performance.now();
-      const executionTime = (endTime - startTime).toFixed(2);
+    const results = (currentQuestion?.testCases || []).map((testCase, index) => {
+      const execution = executeCode(code, testCase);
 
       if (!execution.success) {
         return {
@@ -272,23 +273,16 @@ export default function DSAAssessment() {
         };
       }
 
-      const result = execution.result;
-      const expected = testCase.expected;
-      
-      let passed = false;
-      if (Array.isArray(expected) && Array.isArray(result)) {
-        passed = arraysEqual(result, expected);
-      } else {
-        passed = result === expected;
-      }
+      const passed = Array.isArray(testCase.expected) 
+        ? arraysEqual(execution.result, testCase.expected)
+        : JSON.stringify(execution.result) === JSON.stringify(testCase.expected);
 
       return {
         caseNumber: index + 1,
         passed,
         input: testCase.input,
-        output: result,
-        expected: expected,
-        executionTime: executionTime + 'ms'
+        output: execution.result,
+        expected: testCase.expected
       };
     });
 
@@ -296,198 +290,323 @@ export default function DSAAssessment() {
     setIsRunning(false);
   };
 
-  const handleSubmit = () => {
-    // First run the code
+  const handleSubmit = async () => {
+    // For non-JavaScript languages, skip test execution and go directly to AI review
+    if (language !== 'javascript') {
+      setShowOutput(false);
+      setIsValidating(true);
+      
+      setTimeout(async () => {
+        if (!currentQuestion) return;
+        
+        // Save code for current language
+        const questionAnswers = answers[currentQuestion.id] || {};
+        setAnswers({ 
+          ...answers, 
+          [currentQuestion.id]: {
+            ...questionAnswers,
+            [language]: code
+          }
+        });
+        
+        await validateSolutionWithAI(code, currentQuestion);
+      }, 100);
+      return;
+    }
+
+    // For JavaScript, run tests first then validate
     handleRunCode();
     
-    // Check if all tests pass
-    setTimeout(() => {
-      const allPassed = testResults.every(r => r.passed);
+    setTimeout(async () => {
+      if (!currentQuestion) return;
       
+      const allPassed = testResults.every(r => r.passed);
       if (allPassed && !completedQuestions.includes(currentQuestion.id)) {
         setCompletedQuestions([...completedQuestions, currentQuestion.id]);
       }
       
-      setAnswers({ ...answers, [currentQuestion.id]: code });
-
-      if (allPassed && currentQuestionIndex < dsaQuestions.length - 1) {
-        setTimeout(() => {
-          setCurrentQuestionIndex(currentQuestionIndex + 1);
-          setShowOutput(false);
-          setTestResults([]);
-        }, 2000);
-      }
-    }, 100);
+      // Save code for current language
+      const questionAnswers = answers[currentQuestion.id] || {};
+      setAnswers({ 
+        ...answers, 
+        [currentQuestion.id]: {
+          ...questionAnswers,
+          [language]: code
+        }
+      });
+      
+      await validateSolutionWithAI(code, currentQuestion);
+    }, 500);
   };
 
-  const handleReset = () => {
-    setCode(currentQuestion.template[language] || '');
-    setShowOutput(false);
-    setTestResults([]);
+  const formatTime = (seconds) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
   const getDifficultyColor = (difficulty) => {
-    switch (difficulty) {
-      case 'easy': return 'bg-green-100 text-green-800';
-      case 'medium': return 'bg-yellow-100 text-yellow-800';
-      case 'hard': return 'bg-red-100 text-red-800';
-      default: return 'bg-gray-100 text-gray-800';
-    }
+    const colors = {
+      easy: 'bg-green-100 text-green-800',
+      medium: 'bg-yellow-100 text-yellow-800',
+      hard: 'bg-red-100 text-red-800'
+    };
+    return colors[difficulty?.toLowerCase()] || 'bg-gray-100 text-gray-800';
   };
 
-  const getQuestionStatus = (index) => {
-    const questionId = dsaQuestions[index]?.id;
-    if (completedQuestions.includes(questionId)) {
-      return 'completed';
-    }
-    if (index === currentQuestionIndex) {
-      return 'current';
-    }
-    return 'unattempted';
-  };
+  if (showSetup) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 flex items-center justify-center p-6">
+        <div className="max-w-2xl w-full bg-white rounded-2xl shadow-lg border p-8">
+          <div className="text-center mb-8">
+            <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-blue-600 to-purple-600 rounded-2xl mb-4">
+              <Brain className="w-8 h-8 text-white" />
+            </div>
+            <h1 className="text-3xl font-bold text-gray-900 mb-2">AI DSA Assessment</h1>
+            <p className="text-gray-600">Generate coding questions with AI validation</p>
+          </div>
 
-  const allTestsPassed = testResults.length > 0 && testResults.every(r => r.passed);
-  const hasErrors = testResults.some(r => !r.passed);
-
-  return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <div className="bg-white border-b border-gray-200 px-6 py-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-4">
-            <div>
-              <h1 className="text-xl font-semibold text-gray-900">DSA Assessment</h1>
-              <p className="text-sm text-gray-600">
-                Question {currentQuestionIndex + 1} of {dsaQuestions.length}
-              </p>
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-6 mb-6">
+            <div className="flex items-start">
+              <AlertCircle className="w-5 h-5 text-blue-600 mt-0.5 mr-3 flex-shrink-0" />
+              <div className="text-sm text-blue-900">
+                <p className="font-semibold mb-2">Setup:</p>
+                <ol className="list-decimal list-inside space-y-1">
+                  <li>Get API key from <a href="https://console.groq.com/keys" target="_blank" rel="noopener noreferrer" className="underline">console.groq.com</a></li>
+                  <li>Enter key and settings below</li>
+                  <li>Generate questions</li>
+                </ol>
+              </div>
             </div>
           </div>
 
-          <div className="flex items-center space-x-6">
-            <div className="flex flex-col items-end">
-              <div className="flex items-center space-x-2">
-                <Clock className="w-5 h-5 text-gray-500" />
-                <span className={`font-mono text-lg font-semibold ${
-                  timeLeft < 300 ? 'text-red-600' : 'text-gray-900'
-                }`}>
-                  {formatTime(timeLeft)}
-                </span>
+          <div className="space-y-4">
+            <div>
+              <label className="flex items-center text-sm font-medium text-gray-700 mb-2">
+                <Key className="w-4 h-4 mr-2" />
+                Groq API Key
+              </label>
+              <input
+                type="password"
+                value={apiKey}
+                onChange={(e) => setApiKey(e.target.value)}
+                placeholder="gsk_..."
+                className="w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="text-sm font-medium text-gray-700 mb-2 block">Questions</label>
+                <select
+                  value={questionCount}
+                  onChange={(e) => setQuestionCount(parseInt(e.target.value))}
+                  className="w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value={2}>2</option>
+                  <option value={3}>3</option>
+                  <option value={5}>5</option>
+                </select>
               </div>
-              <div className="w-40 h-2 bg-gray-200 rounded-full overflow-hidden mt-1">
-                <div
-                  className={`h-full ${timeLeft < 300 ? 'bg-red-500' : 'bg-blue-500'}`}
-                  style={{ width: `${(timeLeft / (25 * 60)) * 100}%` }}
-                />
+
+              <div>
+                <label className="text-sm font-medium text-gray-700 mb-2 block">Difficulty</label>
+                <select
+                  value={difficulty}
+                  onChange={(e) => setDifficulty(e.target.value)}
+                  className="w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="easy">Easy</option>
+                  <option value="medium">Medium</option>
+                  <option value="mixed">Mixed</option>
+                </select>
               </div>
             </div>
 
-            <button className="inline-flex items-center px-4 py-2 border border-gray-300 text-gray-700 bg-white rounded-lg hover:bg-gray-50">
-              <Save className="w-4 h-4 mr-2" />
-              Save & Exit
+            <button
+              onClick={generateQuestionsWithAI}
+              disabled={isGenerating || !apiKey.trim()}
+              className="w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white font-semibold py-4 rounded-lg hover:from-blue-700 hover:to-purple-700 disabled:opacity-50 flex items-center justify-center space-x-2"
+            >
+              {isGenerating ? (
+                <>
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                  <span>Generating...</span>
+                </>
+              ) : (
+                <>
+                  <Sparkles className="w-5 h-5" />
+                  <span>Generate Questions</span>
+                </>
+              )}
             </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const allTestsPassed = testResults.length > 0 && testResults.every(r => r.passed);
+
+  return (
+    <div className="min-h-screen bg-gray-50">
+      <div className="bg-white border-b px-6 py-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-xl font-semibold">AI DSA Assessment</h1>
+            <p className="text-sm text-gray-600">Question {currentQuestionIndex + 1} of {questions.length}</p>
+          </div>
+          <div className="flex items-center space-x-2">
+            <Clock className="w-5 h-5 text-gray-500" />
+            <span className={`font-mono text-lg font-semibold ${timeLeft < 300 ? 'text-red-600' : 'text-gray-900'}`}>
+              {formatTime(timeLeft)}
+            </span>
           </div>
         </div>
       </div>
 
       <div className="flex" style={{ height: 'calc(100vh - 80px)' }}>
-        {/* Left Panel - Question */}
-        <div className="w-1/2 bg-white border-r border-gray-200 flex flex-col">
-          <div className="p-6 border-b border-gray-200">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-2xl font-bold text-gray-900">{currentQuestion?.title}</h2>
-              <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
-                getDifficultyColor(currentQuestion?.difficulty)
-              }`}>
-                {currentQuestion?.difficulty.charAt(0).toUpperCase() + currentQuestion?.difficulty.slice(1)}
-              </span>
-            </div>
-
-            <div className="flex flex-wrap gap-2 mb-4">
-              {currentQuestion?.tags.map((tag) => (
-                <span
-                  key={tag}
-                  className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-blue-100 text-blue-800"
-                >
-                  {tag}
-                </span>
-              ))}
-            </div>
+        <div className="w-1/2 bg-white border-r overflow-y-auto p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-2xl font-bold">{currentQuestion?.title}</h2>
+            <span className={`px-3 py-1 rounded-full text-sm font-medium ${getDifficultyColor(currentQuestion?.difficulty)}`}>
+              {currentQuestion?.difficulty}
+            </span>
           </div>
 
-          <div className="flex-1 overflow-y-auto p-6">
-            <div className="max-w-none">
-              <div className="mb-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-3">Problem Statement</h3>
-                <p className="text-gray-700 leading-relaxed">{currentQuestion?.statement}</p>
-              </div>
+          <div className="flex flex-wrap gap-2 mb-6">
+            {currentQuestion?.tags?.map((tag) => (
+              <span key={tag} className="px-2 py-1 rounded text-xs font-medium bg-blue-100 text-blue-800">{tag}</span>
+            ))}
+          </div>
 
-              <div className="mb-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-3">Examples</h3>
-                {currentQuestion?.examples.map((example, index) => (
-                  <div key={index} className="mb-4 p-4 bg-gray-50 rounded-lg">
-                    <p className="text-sm font-medium text-gray-900 mb-1">Example {index + 1}:</p>
-                    <p className="text-sm text-gray-700 font-mono">
-                      <span className="font-semibold">Input:</span> {example.input}
-                    </p>
-                    <p className="text-sm text-gray-700 font-mono">
-                      <span className="font-semibold">Output:</span> {example.output}
-                    </p>
+          <div className="space-y-6">
+            <div>
+              <h3 className="text-lg font-semibold mb-3">Problem</h3>
+              <p className="text-gray-700 leading-relaxed">{currentQuestion?.statement}</p>
+            </div>
+
+            {currentQuestion?.examples?.length > 0 && (
+              <div>
+                <h3 className="text-lg font-semibold mb-3">Examples</h3>
+                {currentQuestion.examples.map((ex, i) => (
+                  <div key={i} className="mb-4 p-4 bg-gray-50 rounded-lg">
+                    <p className="text-sm font-medium mb-1">Example {i + 1}:</p>
+                    <p className="text-sm font-mono"><strong>Input:</strong> {ex.input}</p>
+                    <p className="text-sm font-mono"><strong>Output:</strong> {ex.output}</p>
                   </div>
                 ))}
               </div>
+            )}
 
-              <div className="mb-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-3">Constraints</h3>
-                <ul className="space-y-1">
-                  {currentQuestion?.constraints.map((constraint, index) => (
-                    <li key={index} className="text-sm text-gray-700 flex items-start">
-                      <Dot className="w-4 h-4 text-gray-400 mt-0.5 flex-shrink-0" />
-                      <span className="font-mono">{constraint}</span>
-                    </li>
-                  ))}
-                </ul>
+            {aiValidation && (
+              <div className="bg-gradient-to-r from-purple-50 to-blue-50 border border-purple-200 rounded-lg p-5">
+                <div className="flex items-start mb-4">
+                  <Brain className="w-6 h-6 text-purple-600 mr-2" />
+                  <div>
+                    <h3 className="text-lg font-semibold text-purple-900 mb-1">AI Review</h3>
+                    <p className="text-sm text-purple-700">{aiValidation.feedback}</p>
+                  </div>
+                </div>
+                
+                <div className="grid grid-cols-2 gap-4 text-sm mb-4">
+                  {aiValidation.score !== undefined && (
+                    <div className="bg-white rounded-lg p-3">
+                      <span className="font-semibold">Score:</span>
+                      <span className="ml-2 text-2xl font-bold text-purple-600">{aiValidation.score}/100</span>
+                    </div>
+                  )}
+                  {aiValidation.timeComplexity && (
+                    <div className="bg-white rounded-lg p-3">
+                      <span className="font-semibold">Time:</span>
+                      <span className="ml-2 font-mono text-purple-600">{aiValidation.timeComplexity}</span>
+                    </div>
+                  )}
+                </div>
+
+                {aiValidation.strengths?.length > 0 && (
+                  <div className="mb-3">
+                    <span className="font-semibold text-sm">Strengths:</span>
+                    <ul className="ml-4 mt-1">
+                      {aiValidation.strengths.map((s, i) => (
+                        <li key={i} className="text-sm text-green-700">✓ {s}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+                {aiValidation.improvements?.length > 0 && (
+                  <div>
+                    <span className="font-semibold text-sm">Improvements:</span>
+                    <ul className="ml-4 mt-1">
+                      {aiValidation.improvements.map((imp, i) => (
+                        <li key={i} className="text-sm text-yellow-700">→ {imp}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
               </div>
-            </div>
+            )}
           </div>
         </div>
 
-        {/* Right Panel - Code Editor */}
         <div className="w-1/2 flex flex-col">
-          <div className="bg-white border-b border-gray-200 p-4">
-            <div className="flex items-center justify-between mb-4">
+          <div className="bg-white border-b p-4">
+            <div className="flex items-center justify-between">
               <div className="flex items-center space-x-4">
                 <Code className="w-5 h-5 text-gray-600" />
                 <select
                   value={language}
                   onChange={(e) => setLanguage(e.target.value)}
-                  className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500"
                 >
                   <option value="javascript">JavaScript</option>
-                  <option value="python">Python (View Only)</option>
-                  <option value="java">Java (View Only)</option>
-                  <option value="cpp">C++ (View Only)</option>
+                  <option value="python">Python</option>
+                  <option value="java">Java</option>
+                  <option value="cpp">C++</option>
                 </select>
+                {language !== 'javascript' && (
+                  <span className="text-xs text-yellow-600 flex items-center">
+                    <AlertCircle className="w-3 h-3 mr-1" />
+                    Code execution unavailable - AI review only
+                  </span>
+                )}
               </div>
 
               <div className="flex items-center space-x-2">
                 <button
                   onClick={handleRunCode}
-                  disabled={isRunning}
+                  disabled={isRunning || language !== 'javascript'}
                   className="inline-flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                  title={language !== 'javascript' ? 'Code execution only available for JavaScript' : ''}
                 >
                   <Play className="w-4 h-4 mr-2" />
-                  {isRunning ? 'Running...' : 'Run Code'}
+                  {isRunning ? 'Running...' : 'Run Tests'}
                 </button>
                 <button
                   onClick={handleSubmit}
-                  className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                  disabled={isValidating}
+                  className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+                  title="Submit for AI review"
                 >
-                  <Send className="w-4 h-4 mr-2" />
-                  Submit
+                  {isValidating ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Validating
+                    </>
+                  ) : (
+                    <>
+                      <Send className="w-4 h-4 mr-2" />
+                      {language === 'javascript' ? 'Submit' : 'AI Review'}
+                    </>
+                  )}
                 </button>
                 <button
-                  onClick={handleReset}
-                  className="inline-flex items-center px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
+                  onClick={() => {
+                    const template = currentQuestion?.templates?.[language] || currentQuestion?.template || '';
+                    setCode(template);
+                  }}
+                  className="inline-flex items-center px-4 py-2 border text-gray-700 rounded-lg hover:bg-gray-50"
                 >
                   <RotateCcw className="w-4 h-4 mr-2" />
                   Reset
@@ -497,152 +616,77 @@ export default function DSAAssessment() {
           </div>
 
           <div className="flex-1 flex flex-col">
-            {/* Code Editor */}
             <div className={showOutput ? "h-3/5" : "h-full"}>
-              <CodeEditor
-                value={code}
-                onChange={setCode}
-                language={language}
-              />
+              <CodeEditor value={code} onChange={setCode} />
             </div>
 
             {showOutput && (
-              <div className="h-2/5 border-t border-gray-200 bg-gray-50 overflow-y-auto">
-                <div className="p-4">
-                  <div className="flex items-center justify-between mb-3">
-                    <h4 className="text-sm font-semibold text-gray-900">Test Results</h4>
-                    {allTestsPassed && (
-                      <div className="flex items-center text-green-600 text-sm font-medium">
-                        <CheckCircle className="w-4 h-4 mr-1" />
-                        All tests passed!
+              <div className="h-2/5 border-t bg-gray-50 overflow-y-auto p-4">
+                <div className="flex items-center justify-between mb-3">
+                  <h4 className="text-sm font-semibold">Test Results</h4>
+                  {allTestsPassed && (
+                    <div className="flex items-center text-green-600 text-sm">
+                      <CheckCircle className="w-4 h-4 mr-1" />
+                      All passed!
+                    </div>
+                  )}
+                </div>
+                
+                <div className="space-y-3">
+                  {testResults.map((result, i) => (
+                    <div key={i} className={`p-3 rounded-lg border-2 ${result.passed ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'}`}>
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-sm font-semibold">Test {result.caseNumber}</span>
+                        {result.passed ? <CheckCircle className="w-5 h-5 text-green-600" /> : <XCircle className="w-5 h-5 text-red-600" />}
                       </div>
-                    )}
-                    {hasErrors && (
-                      <div className="flex items-center text-red-600 text-sm font-medium">
-                        <XCircle className="w-4 h-4 mr-1" />
-                        Some tests failed
-                      </div>
-                    )}
-                  </div>
-                  
-                  <div className="space-y-3">
-                    {testResults.map((result, index) => (
-                      <div 
-                        key={index} 
-                        className={`p-3 rounded-lg border-2 ${
-                          result.passed 
-                            ? 'bg-green-50 border-green-200' 
-                            : 'bg-red-50 border-red-200'
-                        }`}
-                      >
-                        <div className="flex items-center justify-between mb-2">
-                          <span className="text-sm font-semibold text-gray-900">
-                            Test Case {result.caseNumber}
-                          </span>
-                          {result.passed ? (
-                            <CheckCircle className="w-5 h-5 text-green-600" />
-                          ) : (
-                            <XCircle className="w-5 h-5 text-red-600" />
-                          )}
+                      
+                      {result.error ? (
+                        <div className="text-sm text-red-700 font-mono">{result.error}</div>
+                      ) : (
+                        <div className="text-xs space-y-1">
+                          <div><strong>Input:</strong> {JSON.stringify(result.input)}</div>
+                          <div><strong>Output:</strong> {JSON.stringify(result.output)}</div>
+                          <div><strong>Expected:</strong> {JSON.stringify(result.expected)}</div>
                         </div>
-                        
-                        {result.error ? (
-                          <div className="text-sm text-red-700 font-mono">
-                            <div className="flex items-start">
-                              <AlertCircle className="w-4 h-4 mr-2 mt-0.5 flex-shrink-0" />
-                              <span>Error: {result.error}</span>
-                            </div>
-                          </div>
-                        ) : (
-                          <>
-                            <div className="text-xs text-gray-700 space-y-1">
-                              <div>
-                                <span className="font-semibold">Input:</span>{' '}
-                                <span className="font-mono">
-                                  {JSON.stringify(result.input)}
-                                </span>
-                              </div>
-                              <div>
-                                <span className="font-semibold">Your Output:</span>{' '}
-                                <span className="font-mono">
-                                  {JSON.stringify(result.output)}
-                                </span>
-                              </div>
-                              <div>
-                                <span className="font-semibold">Expected:</span>{' '}
-                                <span className="font-mono">
-                                  {JSON.stringify(result.expected)}
-                                </span>
-                              </div>
-                              {result.executionTime && (
-                                <div className="text-gray-500">
-                                  Execution Time: {result.executionTime}
-                                </div>
-                              )}
-                            </div>
-                          </>
-                        )}
-                      </div>
-                    ))}
-                  </div>
+                      )}
+                    </div>
+                  ))}
                 </div>
               </div>
             )}
           </div>
 
-          {/* Question Navigation */}
-          <div className="bg-white border-t border-gray-200 p-4">
+          <div className="bg-white border-t p-4">
             <div className="flex items-center justify-between">
               <button
-                onClick={() => {
-                  setCurrentQuestionIndex(Math.max(0, currentQuestionIndex - 1));
-                  setShowOutput(false);
-                  setTestResults([]);
-                }}
+                onClick={() => setCurrentQuestionIndex(Math.max(0, currentQuestionIndex - 1))}
                 disabled={currentQuestionIndex === 0}
-                className="inline-flex items-center px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="inline-flex items-center px-4 py-2 border rounded-lg hover:bg-gray-50 disabled:opacity-50"
               >
                 <ChevronLeft className="w-4 h-4 mr-2" />
                 Previous
               </button>
 
               <div className="flex gap-2">
-                {dsaQuestions.map((_, index) => {
-                  const status = getQuestionStatus(index);
-                  return (
-                    <button
-                      key={index}
-                      onClick={() => {
-                        setCurrentQuestionIndex(index);
-                        setShowOutput(false);
-                        setTestResults([]);
-                      }}
-                      className={`w-8 h-8 rounded-lg text-sm font-medium flex items-center justify-center ${
-                        status === 'completed'
-                          ? 'bg-green-100 text-green-800'
-                          : status === 'current'
-                          ? 'bg-blue-100 text-blue-800'
-                          : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                      }`}
-                    >
-                      {status === 'completed' ? (
-                        <CheckCircle className="w-4 h-4" />
-                      ) : (
-                        index + 1
-                      )}
-                    </button>
-                  );
-                })}
+                {questions.map((_, i) => (
+                  <button
+                    key={i}
+                    onClick={() => setCurrentQuestionIndex(i)}
+                    className={`w-8 h-8 rounded-lg text-sm font-medium ${
+                      completedQuestions.includes(questions[i]?.id) ? 'bg-green-100 text-green-800' :
+                      i === currentQuestionIndex ? 'bg-blue-100 text-blue-800' :
+                      'bg-gray-100 text-gray-600'
+                    }`}
+                  >
+                    {i + 1}
+                  </button>
+                ))}
               </div>
 
               <button
-                onClick={() => {
-                  setCurrentQuestionIndex(Math.min(dsaQuestions.length - 1, currentQuestionIndex + 1));
-                  setShowOutput(false);
-                  setTestResults([]);
-                }}
-                disabled={currentQuestionIndex === dsaQuestions.length - 1}
-                className="inline-flex items-center px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                onClick={() => setCurrentQuestionIndex(Math.min(questions.length - 1, currentQuestionIndex + 1))}
+                disabled={currentQuestionIndex === questions.length - 1}
+                className="inline-flex items-center px-4 py-2 border rounded-lg hover:bg-gray-50 disabled:opacity-50"
               >
                 Next
                 <ChevronRight className="w-4 h-4 ml-2" />
