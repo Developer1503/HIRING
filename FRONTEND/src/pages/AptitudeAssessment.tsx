@@ -1,3 +1,5 @@
+"use client";
+
 import React, { useState } from "react";
 import {
   Brain,
@@ -8,6 +10,8 @@ import {
   CheckCircle,
   XCircle,
 } from "lucide-react";
+import Confetti from "react-confetti";
+import { useWindowSize } from "react-use";
 
 export default function AptitudeQuestionGenerator() {
   const [apiKey, setApiKey] = useState("");
@@ -22,6 +26,7 @@ export default function AptitudeQuestionGenerator() {
   const [userAnswers, setUserAnswers] = useState({});
   const [submitted, setSubmitted] = useState(false);
   const [score, setScore] = useState(0);
+  const { width, height } = useWindowSize();
 
   // --- Generate Questions ---
   const generateQuestions = async () => {
@@ -220,7 +225,12 @@ Return ONLY JSON array.
 
         {/* TEST MODE */}
         {testMode && questions.length > 0 && (
-          <div className="mt-8">
+          <div className="mt-8 relative">
+            {/* Confetti for perfect score */}
+            {submitted && score === questions.length && (
+              <Confetti width={width} height={height} numberOfPieces={300} />
+            )}
+
             <h2 className="text-xl font-bold text-gray-900 mb-4">
               Aptitude Test ({questions.length} Questions)
             </h2>
@@ -269,7 +279,11 @@ Return ONLY JSON array.
               </button>
             ) : (
               <div className="mt-6 text-center">
-                <p className="text-xl font-semibold text-green-700">
+                <p
+                  className={`text-xl font-semibold ${
+                    score === questions.length ? "text-purple-600" : "text-green-700"
+                  }`}
+                >
                   ✅ You scored {score}/{questions.length}
                 </p>
                 <button
