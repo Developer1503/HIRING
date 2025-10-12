@@ -14,7 +14,7 @@ import Confetti from "react-confetti";
 import { useWindowSize } from "react-use";
 
 export default function AptitudeQuestionGenerator() {
-  const [apiKey, setApiKey] = useState("");
+  const [apiKey, setApiKey] = useState("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"); // Replace with your actual API key
   const [showKey, setShowKey] = useState(false);
   const [category, setCategory] = useState("logical");
   const [difficulty, setDifficulty] = useState("medium");
@@ -30,11 +30,7 @@ export default function AptitudeQuestionGenerator() {
 
   // --- Generate Questions ---
   const generateQuestions = async () => {
-    if (!apiKey.startsWith("gsk_")) {
-      setError("Please enter a valid Groq API key (starts with gsk_)");
-      return;
-    }
-
+    // API key is now hardcoded, no need to validate
     setError("");
     setLoading(true);
     setQuestions([]);
@@ -126,27 +122,7 @@ Return ONLY JSON array.
           </h1>
         </div>
 
-        {/* API Key Input */}
-        <div className="mb-6">
-          <label className="block text-sm font-semibold text-gray-700 mb-2">
-            Groq API Key
-          </label>
-          <div className="flex space-x-2">
-            <input
-              type={showKey ? "text" : "password"}
-              placeholder="Enter your Groq API key (gsk_...)"
-              value={apiKey}
-              onChange={(e) => setApiKey(e.target.value)}
-              className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-            />
-            <button
-              onClick={() => setShowKey(!showKey)}
-              className="px-3 py-2 border border-gray-300 rounded-lg bg-gray-100 hover:bg-gray-200"
-            >
-              {showKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-            </button>
-          </div>
-        </div>
+        {/* API Key is now hardcoded - no input needed */}
 
         {/* Form Inputs */}
         {!testMode && (
