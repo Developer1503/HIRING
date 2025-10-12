@@ -6,20 +6,23 @@ export default function AIInterviewGenerator() {
   const [questions, setQuestions] = useState([]);
   const [step, setStep] = useState('setup');
   const [error, setError] = useState('');
-  const [apiKey, setApiKey] = useState('');
+  const [apiKey, setApiKey] = useState('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'); // Replace with your actual API key
   const [showApiKeyInput, setShowApiKeyInput] = useState(false);
-  const [apiKeyValid, setApiKeyValid] = useState(null);
-  
+  const [apiKeyValid, setApiKeyValid] = useState(true);
+
   // Interview state
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [answers, setAnswers] = useState([]);
   const [isRecording, setIsRecording] = useState(false);
   const [currentTranscript, setCurrentTranscript] = useState('');
   const [isSpeaking, setIsSpeaking] = useState(false);
-  
+  const [shouldKeepRecording, setShouldKeepRecording] = useState(false);
+  const [recognitionActive, setRecognitionActive] = useState(false);
+
   const recognitionRef = useRef(null);
   const synthRef = useRef(null);
-  
+  const shouldKeepRecordingRef = useRef(false);
+
   const [formData, setFormData] = useState({
     jobRole: '',
     experienceLevel: 'intermediate',
@@ -32,21 +35,22 @@ export default function AIInterviewGenerator() {
     }
   });
 
-  // Load API key from memory on mount
+  // Initialize Speech Recognition once
   useEffect(() => {
-    const savedKey = sessionStorage.getItem('groq_api_key');
-    if (savedKey) {
-      setApiKey(savedKey);
-      setApiKeyValid(true);
-    }
-    
     // Initialize Speech Recognition
     if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
       const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
       recognitionRef.current = new SpeechRecognition();
       recognitionRef.current.continuous = true;
       recognitionRef.current.interimResults = true;
-      
+      recognitionRef.current.maxAlternatives = 1;
+
+      // Add debugging
+      recognitionRef.current.onstart = () => {
+        console.log('Speech recognition started');
+        setRecognitionActive(true);
+      };
+
       recognitionRef.current.onresult = (event) => {
         let transcript = '';
         for (let i = event.resultIndex; i < event.results.length; i++) {
@@ -54,21 +58,23 @@ export default function AIInterviewGenerator() {
         }
         setCurrentTranscript(transcript);
       };
-      
+
       recognitionRef.current.onerror = (event) => {
         console.error('Speech recognition error:', event.error);
-        setIsRecording(false);
-      };
-      
-      recognitionRef.current.onend = () => {
-        setIsRecording(false);
+        // Only stop recording on certain errors, not all
+        if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
+          setIsRecording(false);
+          setShouldKeepRecording(false);
+        }
       };
     }
-    
+
     // Initialize Speech Synthesis
     synthRef.current = window.speechSynthesis;
-    
+
     return () => {
+      setShouldKeepRecording(false);
+      shouldKeepRecordingRef.current = false;
       if (recognitionRef.current) {
         recognitionRef.current.stop();
       }
@@ -78,12 +84,43 @@ export default function AIInterviewGenerator() {
     };
   }, []);
 
-  // Save API key to session storage when it changes
+  // Set up the onend handler that uses ref for current state
   useEffect(() => {
-    if (apiKey && apiKeyValid) {
-      sessionStorage.setItem('groq_api_key', apiKey);
+    if (recognitionRef.current) {
+      recognitionRef.current.onend = () => {
+        console.log('Speech recognition ended. shouldKeepRecording:', shouldKeepRecordingRef.current);
+        setRecognitionActive(false);
+
+        // Only restart if we should keep recording (user hasn't clicked stop)
+        if (shouldKeepRecordingRef.current) {
+          console.log('Attempting to restart in 500ms...');
+          setTimeout(() => {
+            if (shouldKeepRecordingRef.current && recognitionRef.current) {
+              try {
+                console.log('Restarting speech recognition...');
+                recognitionRef.current.start();
+              } catch (error) {
+                console.log('Recognition restart failed:', error);
+                setIsRecording(false);
+                setShouldKeepRecording(false);
+                shouldKeepRecordingRef.current = false;
+              }
+            }
+          }, 500); // Increased delay
+        } else {
+          console.log('Stopping recording as shouldKeepRecording is false');
+          setIsRecording(false);
+        }
+      };
     }
-  }, [apiKey, apiKeyValid]);
+  }, []); // Only run once since we're using ref
+
+  // Save API key to session storage when it changes
+  // useEffect(() => {
+  //   if (apiKey && apiKeyValid) {
+  //     sessionStorage.setItem('groq_api_key', apiKey);
+  //   }
+  // }, [apiKey, apiKeyValid]);
 
   const validateApiKey = async () => {
     if (!apiKey.trim()) {
@@ -97,7 +134,7 @@ export default function AIInterviewGenerator() {
           'Authorization': `Bearer ${apiKey}`
         }
       });
-      
+
       const isValid = response.ok;
       setApiKeyValid(isValid);
       return isValid;
@@ -133,7 +170,7 @@ Generate ${formData.questionCount} unique questions now in the exact numbered fo
 
     const models = [
       'llama-3.3-70b-versatile',
-      'llama-3.1-70b-versatile', 
+      'llama-3.1-70b-versatile',
       'gemma2-9b-it',
       'mixtral-8x7b-32768'
     ];
@@ -194,22 +231,22 @@ Generate ${formData.questionCount} unique questions now in the exact numbered fo
   const parseQuestions = (text) => {
     const lines = text.split('\n').filter(line => line.trim());
     const parsedQuestions = [];
-    
+
     lines.forEach((line) => {
       // Match numbered questions with optional type labels
       const match = line.match(/^(\d+)\.\s*(.+?)(?:\s*\(Type:\s*(\w+)\))?\.?\s*$/i);
-      
+
       if (match && match[2].length > 15) {
         const questionText = match[2].trim().replace(/\s+/g, ' ');
         const type = match[3]?.toLowerCase() || 'behavioral';
-        
-        const formattedQuestion = questionText.endsWith('?') || questionText.endsWith('.') 
-          ? questionText 
+
+        const formattedQuestion = questionText.endsWith('?') || questionText.endsWith('.')
+          ? questionText
           : questionText + '?';
-        
+
         // Validate type
         const validType = ['technical', 'behavioral', 'hr'].includes(type) ? type : 'behavioral';
-        
+
         parsedQuestions.push({
           id: `q-${Date.now()}-${parsedQuestions.length}`,
           question: formattedQuestion,
@@ -311,7 +348,7 @@ Generate ${formData.questionCount} unique questions now in the exact numbered fo
       .map(([type, _]) => type);
 
     const filtered = fallbackPool.filter(q => enabledTypes.includes(q.type));
-    
+
     // Shuffle and select
     const shuffled = filtered.sort(() => Math.random() - 0.5);
     const selected = shuffled.slice(0, formData.questionCount);
@@ -335,18 +372,7 @@ Generate ${formData.questionCount} unique questions now in the exact numbered fo
       return;
     }
 
-    if (!apiKey.trim()) {
-      setError('Please enter your Groq API key');
-      setShowApiKeyInput(true);
-      return;
-    }
-
-    // Validate API key first
-    const isValid = await validateApiKey();
-    if (!isValid) {
-      setError('Invalid API key. Please check your key and try again.');
-      return;
-    }
+    // API key validation removed - using hardcoded key
 
     setLoading(true);
     setStep('generating');
@@ -355,7 +381,7 @@ Generate ${formData.questionCount} unique questions now in the exact numbered fo
     try {
       const generatedText = await generateWithGroq();
       const parsedQuestions = parseQuestions(generatedText);
-      
+
       if (parsedQuestions.length === 0) {
         setError('AI generated invalid format. Using fallback questions.');
         setQuestions(getFallbackQuestions());
@@ -367,7 +393,7 @@ Generate ${formData.questionCount} unique questions now in the exact numbered fo
       } else {
         setQuestions(parsedQuestions);
       }
-      
+
       setStep('ready');
     } catch (err) {
       setError(err.message || 'Failed to generate questions. Using fallback questions.');
@@ -384,49 +410,63 @@ Generate ${formData.questionCount} unique questions now in the exact numbered fo
     setCurrentQuestionIndex(0);
     setAnswers([]);
     setCurrentTranscript('');
-    
+
     // Speak the first question
     setTimeout(() => speakQuestion(questions[0].question), 500);
   };
-  
+
   const speakQuestion = (text) => {
     if (!synthRef.current) return;
-    
+
     synthRef.current.cancel();
     const utterance = new SpeechSynthesisUtterance(text);
     utterance.rate = 0.9;
     utterance.pitch = 1;
-    
+
     utterance.onstart = () => setIsSpeaking(true);
     utterance.onend = () => setIsSpeaking(false);
-    
+
     synthRef.current.speak(utterance);
   };
-  
-  const startRecording = () => {
+
+  const toggleRecording = () => {
     if (!recognitionRef.current) {
       alert('Speech recognition is not supported in your browser. Please use Chrome or Edge.');
       return;
     }
-    
-    setCurrentTranscript('');
-    setIsRecording(true);
-    recognitionRef.current.start();
-  };
-  
-  const stopRecording = () => {
-    if (recognitionRef.current && isRecording) {
-      recognitionRef.current.stop();
+
+    if (isRecording) {
+      // Stop recording
+      console.log('User clicked stop recording');
+      setShouldKeepRecording(false);
+      shouldKeepRecordingRef.current = false;
       setIsRecording(false);
+      recognitionRef.current.stop();
+    } else {
+      // Start recording
+      console.log('User clicked start recording');
+      setCurrentTranscript('');
+      setIsRecording(true);
+      setShouldKeepRecording(true);
+      shouldKeepRecordingRef.current = true;
+      try {
+        recognitionRef.current.start();
+        console.log('Speech recognition started successfully');
+      } catch (error) {
+        console.log('Recognition start failed:', error);
+        setIsRecording(false);
+        setShouldKeepRecording(false);
+        shouldKeepRecordingRef.current = false;
+      }
     }
   };
-  
+
   const saveAnswer = () => {
     if (!currentTranscript.trim()) {
       setError('Please record an answer before proceeding');
       return;
     }
-    
+
     const newAnswer = {
       questionId: questions[currentQuestionIndex].id,
       question: questions[currentQuestionIndex].question,
@@ -434,11 +474,11 @@ Generate ${formData.questionCount} unique questions now in the exact numbered fo
       timestamp: new Date().toISOString(),
       duration: 0 // Could track actual duration if needed
     };
-    
+
     setAnswers([...answers, newAnswer]);
     setCurrentTranscript('');
     setError('');
-    
+
     // Move to next question or finish
     if (currentQuestionIndex < questions.length - 1) {
       const nextIndex = currentQuestionIndex + 1;
@@ -448,7 +488,7 @@ Generate ${formData.questionCount} unique questions now in the exact numbered fo
       completeInterview();
     }
   };
-  
+
   const skipQuestion = () => {
     const newAnswer = {
       questionId: questions[currentQuestionIndex].id,
@@ -457,11 +497,11 @@ Generate ${formData.questionCount} unique questions now in the exact numbered fo
       timestamp: new Date().toISOString(),
       duration: 0
     };
-    
+
     setAnswers([...answers, newAnswer]);
     setCurrentTranscript('');
     setError('');
-    
+
     if (currentQuestionIndex < questions.length - 1) {
       const nextIndex = currentQuestionIndex + 1;
       setCurrentQuestionIndex(nextIndex);
@@ -470,17 +510,20 @@ Generate ${formData.questionCount} unique questions now in the exact numbered fo
       completeInterview();
     }
   };
-  
+
   const completeInterview = () => {
     setStep('complete');
+    setShouldKeepRecording(false);
+    shouldKeepRecordingRef.current = false;
+    setIsRecording(false);
     if (synthRef.current) {
       synthRef.current.cancel();
     }
-    if (recognitionRef.current && isRecording) {
+    if (recognitionRef.current) {
       recognitionRef.current.stop();
     }
   };
-  
+
   const exportInterview = () => {
     const exportData = {
       metadata: {
@@ -494,7 +537,7 @@ Generate ${formData.questionCount} unique questions now in the exact numbered fo
       questions: questions,
       answers: answers
     };
-    
+
     const dataStr = JSON.stringify(exportData, null, 2);
     const dataBlob = new Blob([dataStr], { type: 'application/json' });
     const url = URL.createObjectURL(dataBlob);
@@ -516,7 +559,7 @@ Generate ${formData.questionCount} unique questions now in the exact numbered fo
       },
       questions: questions
     };
-    
+
     const dataStr = JSON.stringify(exportData, null, 2);
     const dataBlob = new Blob([dataStr], { type: 'application/json' });
     const url = URL.createObjectURL(dataBlob);
@@ -548,7 +591,7 @@ Generate ${formData.questionCount} unique questions now in the exact numbered fo
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
       <div className="max-w-6xl mx-auto px-6 py-12">
-        
+
         <div className="text-center mb-8">
           <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-blue-600 to-purple-600 rounded-2xl mb-4">
             <Sparkles className="w-8 h-8 text-white" />
@@ -561,65 +604,7 @@ Generate ${formData.questionCount} unique questions now in the exact numbered fo
           </p>
         </div>
 
-        <div className="max-w-3xl mx-auto mb-8">
-          <div className="bg-gradient-to-r from-blue-50 to-purple-50 border border-blue-200 rounded-lg p-6">
-            <div className="flex items-start">
-              <AlertCircle className="w-5 h-5 text-blue-600 mt-0.5 mr-3 flex-shrink-0" />
-              <div className="text-sm text-blue-900 flex-1">
-                <p className="font-semibold mb-2">Quick Setup (30 seconds):</p>
-                <ol className="list-decimal list-inside space-y-1 ml-2 mb-3">
-                  <li>Go to <a href="https://console.groq.com/keys" target="_blank" rel="noopener noreferrer" className="underline font-medium hover:text-blue-700">console.groq.com/keys</a></li>
-                  <li>Sign up with Google/GitHub (completely free)</li>
-                  <li>Click "Create API Key" and copy it</li>
-                  <li>Paste it below</li>
-                </ol>
-
-                <div className="mt-4">
-                  <label className="flex items-center text-sm font-medium text-blue-900 mb-2">
-                    <Key className="w-4 h-4 mr-2" />
-                    Groq API Key
-                  </label>
-                  <div className="flex space-x-2">
-                    <div className="flex-1 relative">
-                      <input
-                        type={showApiKeyInput ? "text" : "password"}
-                        value={apiKey}
-                        onChange={(e) => {
-                          setApiKey(e.target.value);
-                          setApiKeyValid(null);
-                        }}
-                        onBlur={validateApiKey}
-                        placeholder="gsk_..."
-                        className="w-full px-4 py-2 pr-10 border border-blue-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
-                      />
-                      {apiKeyValid !== null && (
-                        <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                          {apiKeyValid ? (
-                            <Check className="w-5 h-5 text-green-600" />
-                          ) : (
-                            <X className="w-5 h-5 text-red-600" />
-                          )}
-                        </div>
-                      )}
-                    </div>
-                    {apiKey && (
-                      <button
-                        onClick={() => setShowApiKeyInput(!showApiKeyInput)}
-                        className="px-4 py-2 bg-blue-100 border border-blue-300 rounded-lg hover:bg-blue-200 text-sm font-medium flex items-center gap-2"
-                      >
-                        {showApiKeyInput ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                        {showApiKeyInput ? 'Hide' : 'Show'}
-                      </button>
-                    )}
-                  </div>
-                  <p className="mt-2 text-xs text-blue-800">
-                    🔒 Your key is stored in memory only and sent directly to Groq. Never shared.
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
+        {/* API Key setup section removed - key is now hardcoded */}
 
         {step === 'setup' && (
           <div className="max-w-3xl mx-auto">
@@ -660,11 +645,10 @@ Generate ${formData.questionCount} unique questions now in the exact numbered fo
                       <button
                         key={level}
                         onClick={() => setFormData({ ...formData, experienceLevel: level })}
-                        className={`px-4 py-3 rounded-lg border-2 font-medium transition-all ${
-                          formData.experienceLevel === level
-                            ? 'border-blue-600 bg-blue-50 text-blue-700'
-                            : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300'
-                        }`}
+                        className={`px-4 py-3 rounded-lg border-2 font-medium transition-all ${formData.experienceLevel === level
+                          ? 'border-blue-600 bg-blue-50 text-blue-700'
+                          : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300'
+                          }`}
                       >
                         {level.charAt(0).toUpperCase() + level.slice(1)}
                       </button>
@@ -731,7 +715,7 @@ Generate ${formData.questionCount} unique questions now in the exact numbered fo
 
                 <button
                   onClick={generateQuestions}
-                  disabled={loading || !apiKey.trim()}
+                  disabled={loading}
                   className="w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white font-semibold py-4 px-6 rounded-lg hover:from-blue-700 hover:to-purple-700 transition-all flex items-center justify-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-xl"
                 >
                   {loading ? (
@@ -889,9 +873,9 @@ Generate ${formData.questionCount} unique questions now in the exact numbered fo
                     </div>
                   </div>
                 </div>
-                
+
                 <div className="w-full bg-gray-200 rounded-full h-2">
-                  <div 
+                  <div
                     className="bg-gradient-to-r from-blue-600 to-purple-600 h-2 rounded-full transition-all duration-300"
                     style={{ width: `${((currentQuestionIndex) / questions.length) * 100}%` }}
                   ></div>
@@ -919,7 +903,7 @@ Generate ${formData.questionCount} unique questions now in the exact numbered fo
                     <span>{isSpeaking ? 'Speaking...' : 'Repeat Question'}</span>
                   </button>
                 </div>
-                
+
                 <p className="text-xl text-gray-900 font-medium leading-relaxed">
                   {questions[currentQuestionIndex].question}
                 </p>
@@ -932,7 +916,7 @@ Generate ${formData.questionCount} unique questions now in the exact numbered fo
                     {currentTranscript.split(' ').filter(w => w).length} words
                   </span>
                 </div>
-                
+
                 <div className="border-2 border-gray-300 rounded-lg p-4 min-h-32 bg-white">
                   {currentTranscript ? (
                     <p className="text-gray-900 whitespace-pre-wrap">{currentTranscript}</p>
@@ -940,36 +924,45 @@ Generate ${formData.questionCount} unique questions now in the exact numbered fo
                     <p className="text-gray-400 italic">Click the microphone button to start recording your answer...</p>
                   )}
                 </div>
-                
+
                 <div className="mt-4 flex items-center justify-center space-x-4">
-                  {!isRecording ? (
-                    <button
-                      onClick={startRecording}
-                      className="flex items-center space-x-2 bg-red-600 text-white px-6 py-3 rounded-lg hover:bg-red-700 transition-all shadow-lg"
-                    >
-                      <Mic className="w-5 h-5" />
-                      <span>Start Recording</span>
-                    </button>
-                  ) : (
-                    <button
-                      onClick={stopRecording}
-                      className="flex items-center space-x-2 bg-gray-800 text-white px-6 py-3 rounded-lg hover:bg-gray-900 transition-all shadow-lg animate-pulse"
-                    >
-                      <Square className="w-5 h-5" />
-                      <span>Stop Recording</span>
-                    </button>
-                  )}
-                  
+                  <button
+                    onClick={toggleRecording}
+                    className={`flex items-center space-x-2 px-6 py-3 rounded-lg transition-all shadow-lg ${isRecording
+                      ? 'bg-gray-800 text-white hover:bg-gray-900 animate-pulse'
+                      : 'bg-red-600 text-white hover:bg-red-700'
+                      }`}
+                  >
+                    {isRecording ? (
+                      <>
+                        <Square className="w-5 h-5" />
+                        <span>Stop Recording</span>
+                      </>
+                    ) : (
+                      <>
+                        <Mic className="w-5 h-5" />
+                        <span>Start Recording</span>
+                      </>
+                    )}
+                  </button>
+
                   {isRecording && (
                     <div className="flex items-center space-x-2 text-red-600">
                       <div className="w-3 h-3 bg-red-600 rounded-full animate-pulse"></div>
                       <span className="text-sm font-medium">Recording...</span>
                     </div>
                   )}
+
+                  {/* Debug status */}
+                  <div className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">
+                    Status: {isRecording ? 'Recording' : 'Stopped'} |
+                    Recognition: {recognitionActive ? 'Active' : 'Inactive'} |
+                    Keep: {shouldKeepRecording ? 'Yes' : 'No'}
+                  </div>
                 </div>
-                
+
                 <p className="text-xs text-gray-500 text-center mt-3">
-                  {!('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) 
+                  {!('webkitSpeechRecognition' in window || 'SpeechRecognition' in window)
                     ? 'Speech recognition not supported. Please use Chrome or Edge browser.'
                     : 'Speak clearly into your microphone. Your speech will be converted to text automatically.'
                   }
@@ -984,7 +977,7 @@ Generate ${formData.questionCount} unique questions now in the exact numbered fo
                   <SkipForward className="w-5 h-5" />
                   <span>Skip Question</span>
                 </button>
-                
+
                 <button
                   onClick={saveAnswer}
                   disabled={!currentTranscript.trim()}
@@ -1069,7 +1062,7 @@ Generate ${formData.questionCount} unique questions now in the exact numbered fo
                   <Download className="w-5 h-5" />
                   <span>Export Interview</span>
                 </button>
-                
+
                 <button
                   onClick={() => {
                     setStep('setup');
