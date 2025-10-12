@@ -50,7 +50,7 @@ function CodeEditor({ value, onChange }) {
 }
 
 export default function AIDSAAssessment() {
-  const [apiKey, setApiKey] = useState('');
+  const [apiKey, setApiKey] = useState('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'); // Replace with your actual API key
   const [showSetup, setShowSetup] = useState(true);
   const [questions, setQuestions] = useState([]);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
@@ -90,11 +90,7 @@ export default function AIDSAAssessment() {
   }, [showSetup]);
 
   const generateQuestionsWithAI = async () => {
-    if (!apiKey.trim()) {
-      alert('Please enter your Groq API key');
-      return;
-    }
-
+    // API key is now hardcoded, no need to check
     setIsGenerating(true);
 
     const difficultyInstruction = difficulty === 'mixed' 
@@ -366,34 +362,7 @@ Format:
             <p className="text-gray-600">Generate coding questions with AI validation</p>
           </div>
 
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-6 mb-6">
-            <div className="flex items-start">
-              <AlertCircle className="w-5 h-5 text-blue-600 mt-0.5 mr-3 flex-shrink-0" />
-              <div className="text-sm text-blue-900">
-                <p className="font-semibold mb-2">Setup:</p>
-                <ol className="list-decimal list-inside space-y-1">
-                  <li>Get API key from <a href="https://console.groq.com/keys" target="_blank" rel="noopener noreferrer" className="underline">console.groq.com</a></li>
-                  <li>Enter key and settings below</li>
-                  <li>Generate questions</li>
-                </ol>
-              </div>
-            </div>
-          </div>
-
           <div className="space-y-4">
-            <div>
-              <label className="flex items-center text-sm font-medium text-gray-700 mb-2">
-                <Key className="w-4 h-4 mr-2" />
-                Groq API Key
-              </label>
-              <input
-                type="password"
-                value={apiKey}
-                onChange={(e) => setApiKey(e.target.value)}
-                placeholder="gsk_..."
-                className="w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div>
@@ -425,7 +394,7 @@ Format:
 
             <button
               onClick={generateQuestionsWithAI}
-              disabled={isGenerating || !apiKey.trim()}
+              disabled={isGenerating}
               className="w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white font-semibold py-4 rounded-lg hover:from-blue-700 hover:to-purple-700 disabled:opacity-50 flex items-center justify-center space-x-2"
             >
               {isGenerating ? (
