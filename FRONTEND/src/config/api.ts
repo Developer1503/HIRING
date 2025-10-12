@@ -55,20 +55,45 @@ class ApiClient {
   }
 
   // Auth endpoints
+  // async register(userData: {
+  //   name: string;
+  //   email: string;
+  //   password: string;
+  //   role?: string;
+  //   experienceLevel?: string;
+  //   preferredRole?: string;
+  //   phone?: string;
+  // }) {
+  //   return this.request('/auth/register', {
+  //     method: 'POST',
+  //     body: JSON.stringify(userData),
+  //   });
+  // }
   async register(userData: {
-    name: string;
-    email: string;
-    password: string;
-    role?: string;
-    experienceLevel?: string;
-    preferredRole?: string;
-    phone?: string;
-  }) {
-    return this.request('/auth/register', {
+  name: string;
+  email: string;
+  password: string;
+  role?: string;
+  experienceLevel?: string;
+  preferredRole?: string;
+  phone?: string;
+}) {
+  console.log('🔧 API Client - Registering user:', userData.email);
+  console.log('🔧 Using base URL:', this.baseURL);
+  
+  try {
+    const response = await this.request('/auth/register', {
       method: 'POST',
       body: JSON.stringify(userData),
     });
+    
+    console.log('✅ Register response:', response);
+    return response;
+  } catch (error) {
+    console.error('❌ API Client - Register error:', error);
+    throw error;
   }
+}
 
   async login(credentials: { email: string; password: string }) {
     const response = await this.request<{
