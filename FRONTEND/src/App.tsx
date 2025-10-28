@@ -12,6 +12,7 @@ import Results from './pages/Results';
 import Analytics from './pages/Analytics';
 import Practice from './pages/Practice';
 import Profile from './pages/Profile';
+import AdminDashboard from './pages/AdminDashboard';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { state } = useApp();
@@ -86,6 +87,14 @@ function AppContent() {
             element={
               <ProtectedRoute>
                 <Profile />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin"
+            element={
+              <ProtectedRoute>
+                <AdminDashboard />
               </ProtectedRoute>
             }
           />
