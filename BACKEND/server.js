@@ -4,6 +4,7 @@ const cors = require('cors');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const multer = require('multer');
+const axios = require('axios');
 const pdfParse = require('pdf-parse');
 const natural = require('natural');
 const nlp = require('compromise');
@@ -14,6 +15,45 @@ const app = express();
 // Middleware
 app.use(cors());
 app.use(express.json());
+
+// GROQ proxy endpoints - use server-side API key from BACKEND/.env (process.env.API_KEY)
+const GROQ_API_BASE = 'https://api.groq.com/openai/v1';
+
+// Proxy to list models (used for validating key from frontend)
+app.get('/api/groq/models', async (req, res) => {
+  try {
+    const resp = await axios.get(`${GROQ_API_BASE}/models`, {
+      headers: {
+        Authorization: `Bearer ${process.env.API_KEY}`
+      }
+    });
+    res.status(resp.status).json(resp.data);
+  } catch (err) {
+    const status = err.response?.status || 500;
+    const data = err.response?.data || { error: err.message };
+    console.error('GROQ /models error:', err.response?.data || err.message);
+    res.status(status).json(data);
+  }
+});
+
+// Proxy chat completions (frontend posts body directly)
+app.post('/api/groq/chat', async (req, res) => {
+  try {
+    const resp = await axios.post(`${GROQ_API_BASE}/chat/completions`, req.body, {
+      headers: {
+        Authorization: `Bearer ${process.env.API_KEY}`,
+        'Content-Type': 'application/json'
+      },
+      timeout: 30000
+    });
+    res.status(resp.status).json(resp.data);
+  } catch (err) {
+    const status = err.response?.status || 500;
+    const data = err.response?.data || { error: err.message };
+    console.error('GROQ /chat error:', err.response?.data || err.message);
+    res.status(status).json(data);
+  }
+});
 
 // Multer configuration for file uploads
 const storage = multer.memoryStorage();
