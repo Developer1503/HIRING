@@ -1,8 +1,10 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useApp } from '../contexts/AppContext';
 import ProgressRing from '../components/ProgressRing';
 import { generateMockAnalytics } from '../data/mockData';
+import { resumeApi } from '../services/resumeApi';
+import { generateLiveTestResult } from '../utils/generateTestResult';
 import { 
   Trophy, 
   TrendingUp, 
@@ -15,12 +17,19 @@ import {
   Target,
   Award,
   BarChart3,
-  RefreshCw
+  RefreshCw,
+  FileText,
+  Save,
+  CheckCircle
 } from 'lucide-react';
 
 export default function Results() {
   const { state, dispatch } = useApp();
   const mockAnalytics = generateMockAnalytics();
+  const [savedResult, setSavedResult] = useState(null);
+  const [isSaving, setIsSaving] = useState(false);
+  const [latestResumeAnalysis, setLatestResumeAnalysis] = useState(null);
+  const [comprehensiveResult, setComprehensiveResult] = useState(null);
 
   // Calculate results based on progress
   const dsaScore = Math.round((state.assessmentProgress.dsa.completedQuestions.length / 10) * 100);
@@ -37,6 +46,71 @@ export default function Results() {
     if (score >= 60) return 'B';
     if (score >= 50) return 'C+';
     return 'C';
+  };
+
+  useEffect(() => {
+    loadLatestResumeAnalysis();
+    // Auto-generate comprehensive results for demo
+    if (state.user && !comprehensiveResult) {
+      setTimeout(() => {
+        generateComprehensiveResults();
+      }, 1000);
+    }
+  }, [state.user]);
+
+  const loadLatestResumeAnalysis = async () => {
+    try {
+      const analyses = await resumeApi.getAnalyses();
+      if (analyses.length > 0) {
+        setLatestResumeAnalysis(analyses[0]);
+      }
+    } catch (error) {
+      console.error('Error loading resume analysis:', error);
+    }
+  };
+
+  const generateComprehensiveResults = () => {
+    if (!state.user) return;
+
+    // Generate the comprehensive test result
+    const testResult = generateLiveTestResult();
+    
+    // Update with current user info
+    const result = {
+      ...testResult,
+      candidateId: state.user.id,
+      candidateName: state.user.name,
+      email: state.user.email,
+    };
+
+    setComprehensiveResult(result);
+    
+    // Also set the resume analysis for display
+    if (result.resumeAnalysis) {
+      setLatestResumeAnalysis(result.resumeAnalysis);
+    }
+  };
+
+  const handleSaveResults = () => {
+    if (!comprehensiveResult) return;
+
+    setIsSaving(true);
+    try {
+      // Save to localStorage
+      const existingResults = JSON.parse(localStorage.getItem('savedResults') || '[]');
+      const resultWithTimestamp = {
+        ...comprehensiveResult,
+        savedAt: new Date().toISOString()
+      };
+      existingResults.unshift(resultWithTimestamp);
+      localStorage.setItem('savedResults', JSON.stringify(existingResults));
+      
+      setSavedResult(resultWithTimestamp);
+    } catch (error) {
+      console.error('Error saving results:', error);
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleSaveAnalytics = () => {
@@ -258,6 +332,260 @@ export default function Results() {
         </div>
       </div>
 
+      {/* Comprehensive Results Display */}
+      {comprehensiveResult && (
+        <>
+          {/* Resume Analysis Integration */}
+          {latestResumeAnalysis && (
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-8">
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center">
+                  <FileText className="w-6 h-6 text-purple-600 mr-3" />
+                  <div>
+                    <h3 className="text-xl font-semibold text-gray-900">Resume Analysis Results</h3>
+                    <p className="text-sm text-gray-600">Based on your uploaded resume: {latestResumeAnalysis.fileName}</p>
+                  </div>
+                </div>
+                <Link
+                  to="/resume-analysis"
+                  className="text-purple-600 hover:text-purple-700 font-medium text-sm"
+                >
+                  View Full Analysis →
+                </Link>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
+                <div className="text-center p-4 bg-purple-50 rounded-lg">
+                  <div className="text-2xl font-bold text-purple-600">{latestResumeAnalysis.analysis.overallScore}/100</div>
+                  <div className="text-sm text-gray-600">Overall Score</div>
+                </div>
+                
+                <div className="text-center p-4 bg-green-50 rounded-lg">
+                  <div className="text-2xl font-bold text-green-600">{latestResumeAnalysis.analysis.atsScore}/100</div>
+                  <div className="text-sm text-gray-600">ATS Score</div>
+                </div>
+                
+                <div className="text-center p-4 bg-blue-50 rounded-lg">
+                  <div className="text-2xl font-bold text-blue-600">{latestResumeAnalysis.analysis.readabilityScore}/100</div>
+                  <div className="text-sm text-gray-600">Readability</div>
+                </div>
+                
+                <div className="text-center p-4 bg-orange-50 rounded-lg">
+                  <div className="text-2xl font-bold text-orange-600">{latestResumeAnalysis.analysis.keywords.technical.length}</div>
+                  <div className="text-sm text-gray-600">Tech Skills Found</div>
+                </div>
+              </div>
+
+              {/* Resume Section Breakdown */}
+              <div className="mb-6">
+                <h4 className="font-medium text-gray-900 mb-4">Resume Section Analysis</h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {Object.entries(latestResumeAnalysis.analysis.sections).map(([section, data]) => (
+                    <div key={section} className="border border-gray-200 rounded-lg p-4">
+                      <div className="flex items-center justify-between mb-2">
+                        <h5 className="font-medium text-gray-900 capitalize">{section}</h5>
+                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                          data.score >= 80 ? 'text-green-600 bg-green-100' :
+                          data.score >= 60 ? 'text-yellow-600 bg-yellow-100' :
+                          'text-red-600 bg-red-100'
+                        }`}>
+                          {data.score}/100
+                        </span>
+                      </div>
+                      <p className="text-xs text-gray-600">{data.feedback}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Keywords Analysis */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div>
+                  <h4 className="font-medium text-green-800 mb-3 flex items-center">
+                    <CheckCircle className="w-4 h-4 mr-2" />
+                    Technical Skills Found ({latestResumeAnalysis.analysis.keywords.technical.length})
+                  </h4>
+                  <div className="flex flex-wrap gap-2">
+                    {latestResumeAnalysis.analysis.keywords.technical.map((keyword) => (
+                      <span key={keyword} className="px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full">
+                        {keyword}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+                
+                <div>
+                  <h4 className="font-medium text-blue-800 mb-3 flex items-center">
+                    <Award className="w-4 h-4 mr-2" />
+                    Soft Skills Found ({latestResumeAnalysis.analysis.keywords.soft.length})
+                  </h4>
+                  <div className="flex flex-wrap gap-2">
+                    {latestResumeAnalysis.analysis.keywords.soft.map((keyword) => (
+                      <span key={keyword} className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">
+                        {keyword}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+                
+                <div>
+                  <h4 className="font-medium text-orange-800 mb-3 flex items-center">
+                    <Target className="w-4 h-4 mr-2" />
+                    Missing Trending Skills ({latestResumeAnalysis.analysis.keywords.missing.length})
+                  </h4>
+                  <div className="flex flex-wrap gap-2">
+                    {latestResumeAnalysis.analysis.keywords.missing.map((keyword) => (
+                      <span key={keyword} className="px-2 py-1 bg-orange-100 text-orange-800 text-xs rounded-full">
+                        {keyword}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Comprehensive Recommendations */}
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-8">
+            <div className="flex items-center mb-6">
+              <Target className="w-6 h-6 text-blue-600 mr-3" />
+              <h3 className="text-xl font-semibold text-gray-900">Personalized Improvement Plan</h3>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="p-6 bg-blue-50 rounded-lg border border-blue-100">
+                <h4 className="font-semibold text-blue-900 mb-3">Immediate Actions (Next 2 weeks)</h4>
+                <ul className="space-y-2 text-sm text-blue-800">
+                  <li>• Rewrite professional summary (30-50 words)</li>
+                  <li>• Add GitHub profile to contact information</li>
+                  <li>• Practice 5 dynamic programming problems daily</li>
+                  <li>• Create GitHub repositories for projects</li>
+                </ul>
+              </div>
+              
+              <div className="p-6 bg-emerald-50 rounded-lg border border-emerald-100">
+                <h4 className="font-semibold text-emerald-900 mb-3">Medium-term Goals (1-2 months)</h4>
+                <ul className="space-y-2 text-sm text-emerald-800">
+                  <li>• Learn Docker and containerization basics</li>
+                  <li>• Improve verbal reasoning through daily reading</li>
+                  <li>• Study system design fundamentals</li>
+                  <li>• Add live demo URLs to projects</li>
+                </ul>
+              </div>
+              
+              <div className="p-6 bg-purple-50 rounded-lg border border-purple-100">
+                <h4 className="font-semibold text-purple-900 mb-3">Long-term Development (3-6 months)</h4>
+                <ul className="space-y-2 text-sm text-purple-800">
+                  <li>• Pursue AWS Cloud Practitioner certification</li>
+                  <li>• Lead a team project for leadership skills</li>
+                  <li>• Contribute to 3 open-source projects</li>
+                  <li>• Retake assessment to measure improvement</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+
+          {/* Performance Comparison */}
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-8">
+            <h3 className="text-xl font-semibold text-gray-900 mb-6">Performance vs Industry Benchmarks</h3>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+              <div className="text-center p-4 border border-gray-200 rounded-lg">
+                <div className="text-lg font-bold text-gray-900">73rd</div>
+                <div className="text-sm text-gray-600 mb-2">Percentile Ranking</div>
+                <div className="text-xs text-green-600">Above Average</div>
+              </div>
+              
+              <div className="text-center p-4 border border-gray-200 rounded-lg">
+                <div className="text-lg font-bold text-gray-900">70% vs 65%</div>
+                <div className="text-sm text-gray-600 mb-2">DSA Score vs Avg</div>
+                <div className="text-xs text-green-600">+5% Above Average</div>
+              </div>
+              
+              <div className="text-center p-4 border border-gray-200 rounded-lg">
+                <div className="text-lg font-bold text-gray-900">88% vs 75%</div>
+                <div className="text-sm text-gray-600 mb-2">Interview vs Avg</div>
+                <div className="text-xs text-green-600">+13% Above Average</div>
+              </div>
+              
+              <div className="text-center p-4 border border-gray-200 rounded-lg">
+                <div className="text-lg font-bold text-gray-900">78% vs 68%</div>
+                <div className="text-sm text-gray-600 mb-2">Resume vs Avg</div>
+                <div className="text-xs text-green-600">+10% Above Average</div>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* Save Results Section */}
+      {comprehensiveResult && !savedResult && (
+        <div className="bg-gradient-to-r from-blue-50 to-purple-50 rounded-xl p-6 mb-8 border border-blue-200">
+          <div className="text-center">
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">Save Your Complete Results</h3>
+            <p className="text-gray-600 mb-4">
+              Save your comprehensive assessment and resume analysis results for future reference and comparison.
+            </p>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4 text-sm">
+              <div className="text-center">
+                <div className="font-semibold text-blue-600">{comprehensiveResult.assessmentResults.overallScore}%</div>
+                <div className="text-gray-600">Overall Score</div>
+              </div>
+              <div className="text-center">
+                <div className="font-semibold text-green-600">{comprehensiveResult.assessmentResults.grade}</div>
+                <div className="text-gray-600">Grade</div>
+              </div>
+              <div className="text-center">
+                <div className="font-semibold text-purple-600">{comprehensiveResult.resumeAnalysis?.analysis.overallScore || 'N/A'}</div>
+                <div className="text-gray-600">Resume Score</div>
+              </div>
+              <div className="text-center">
+                <div className="font-semibold text-orange-600">{comprehensiveResult.assessmentResults.percentile}th</div>
+                <div className="text-gray-600">Percentile</div>
+              </div>
+            </div>
+            <button
+              onClick={handleSaveResults}
+              disabled={isSaving}
+              className="inline-flex items-center px-6 py-3 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
+            >
+              {isSaving ? (
+                <>
+                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
+                  Saving...
+                </>
+              ) : (
+                <>
+                  <Save className="w-5 h-5 mr-2" />
+                  Save Complete Results
+                </>
+              )}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Success Message */}
+      {savedResult && (
+        <div className="bg-green-50 border border-green-200 rounded-xl p-6 mb-8">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center">
+              <CheckCircle className="w-6 h-6 text-green-600 mr-3" />
+              <div>
+                <h3 className="text-lg font-semibold text-green-900">Complete Results Saved Successfully!</h3>
+                <p className="text-green-700">
+                  Your comprehensive assessment and resume analysis have been saved locally.
+                </p>
+              </div>
+            </div>
+            <div className="text-right">
+              <div className="text-sm text-green-600 font-medium">Saved at: {new Date(savedResult.savedAt).toLocaleString()}</div>
+              <div className="text-xs text-green-500">ID: {savedResult.id.slice(-8)}</div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Action Buttons */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <Link
@@ -269,6 +597,14 @@ export default function Results() {
           View Detailed Analytics
         </Link>
         
+        <Link
+          to="/resume-analysis"
+          className="inline-flex items-center justify-center px-6 py-3 bg-purple-600 text-white font-semibold rounded-lg hover:bg-purple-700 transition-colors"
+        >
+          <FileText className="w-5 h-5 mr-2" />
+          Resume Analysis
+        </Link>
+        
         <button className="inline-flex items-center justify-center px-6 py-3 border border-blue-600 text-blue-600 font-semibold rounded-lg hover:bg-blue-50 transition-colors">
           <RefreshCw className="w-5 h-5 mr-2" />
           Retake Assessment
@@ -277,11 +613,6 @@ export default function Results() {
         <button className="inline-flex items-center justify-center px-6 py-3 border border-gray-300 text-gray-700 font-semibold rounded-lg hover:bg-gray-50 transition-colors">
           <Download className="w-5 h-5 mr-2" />
           Download Report
-        </button>
-        
-        <button className="inline-flex items-center justify-center px-6 py-3 border border-gray-300 text-gray-700 font-semibold rounded-lg hover:bg-gray-50 transition-colors">
-          <Share2 className="w-5 h-5 mr-2" />
-          Share Results
         </button>
       </div>
 
