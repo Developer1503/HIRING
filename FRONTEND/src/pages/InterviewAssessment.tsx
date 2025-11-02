@@ -130,11 +130,8 @@ export default function AIInterviewGenerator() {
     }
 
     try {
-      const response = await fetch('https://api.groq.com/openai/v1/models', {
-        headers: {
-          'Authorization': `Bearer ${apiKey}`
-        }
-      });
+      // Validate via backend proxy so API key is kept server-side
+      const response = await fetch('/api/groq/models');
 
       const isValid = response.ok;
       setApiKeyValid(isValid);
@@ -180,11 +177,10 @@ Generate ${formData.questionCount} unique questions now in the exact numbered fo
 
     for (const model of models) {
       try {
-        const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+        const response = await fetch('/api/groq/chat', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${apiKey}`
           },
           body: JSON.stringify({
             model: model,

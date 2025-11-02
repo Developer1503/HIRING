@@ -55,11 +55,10 @@ Each question should be formatted as valid JSON array objects like this:
 Return ONLY JSON array.
       `;
 
-      const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+      const res = await fetch('/api/groq/chat', {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${apiKey}`,
         },
         body: JSON.stringify({
           model: "llama-3.3-70b-versatile",

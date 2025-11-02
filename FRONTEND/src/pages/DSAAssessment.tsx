@@ -126,11 +126,10 @@ export default function AIDSAAssessment() {
 Requirements: ${difficultyInstruction}, 3 test cases per problem, include templates for all 4 languages`;
 
     try {
-      const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      const response = await fetch('/api/groq/chat', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${apiKey}`
         },
         body: JSON.stringify({
           model: 'llama-3.3-70b-versatile',
