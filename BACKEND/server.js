@@ -918,6 +918,10 @@ app.post('/api/v1/users/change-password', authenticateToken, async (req, res) =>
   }
 });
 
+// ============= MOCK API ROUTES =============
+const mockApiRoutes = require('./routes/mockApi');
+app.use('/api', mockApiRoutes);
+
 // ============= RESUME ANALYSIS ROUTES =============
 
 // Upload and analyze resume
