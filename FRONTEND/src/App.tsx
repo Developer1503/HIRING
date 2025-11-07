@@ -11,6 +11,9 @@ import InterviewAssessment from './pages/InterviewAssessment';
 import Results from './pages/Results';
 import Analytics from './pages/Analytics';
 import Practice from './pages/Practice';
+import DSAPractice from './pages/DSAPractice';
+import AptitudePractice from './pages/AptitudePractice';
+import InterviewPractice from './pages/InterviewPractice';
 import Profile from './pages/Profile';
 import ResumeAnalysis from './pages/ResumeAnalysis';
 
@@ -80,6 +83,30 @@ function AppContent() {
             element={
               <ProtectedRoute>
                 <Practice />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/practice/dsa"
+            element={
+              <ProtectedRoute>
+                <DSAPractice />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/practice/aptitude"
+            element={
+              <ProtectedRoute>
+                <AptitudePractice />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/practice/interview"
+            element={
+              <ProtectedRoute>
+                <InterviewPractice />
               </ProtectedRoute>
             }
           />
