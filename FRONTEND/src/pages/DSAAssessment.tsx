@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useApp } from '../contexts/AppContext';
-import { 
-  Clock, Play, RotateCcw, Send, ChevronLeft, ChevronRight, Code, CheckCircle, 
+import {
+  Clock, Play, RotateCcw, Send, ChevronLeft, ChevronRight, Code, CheckCircle,
   XCircle, AlertCircle, Brain, Target, Shuffle, Settings, Database, TreePine,
   GitBranch, Layers, Zap, Hash, Search, BarChart3, Network, Cpu, FileText
 } from 'lucide-react';
@@ -185,7 +185,7 @@ export default function DSAAssessment() {
     },
     python: {
       name: "Python",
-      extension: "py", 
+      extension: "py",
       template: "def solution():\n    # Your code here\n    pass",
       executable: true
     },
@@ -300,8 +300,8 @@ export default function DSAAssessment() {
           cpp: "class Solution {\npublic:\n    void rotate(vector<int>& nums, int k) {\n        // Your code here\n        \n    }\n};"
         },
         testCases: [
-          { input: { nums: [1,2,3,4,5,6,7], k: 3 }, expected: [5,6,7,1,2,3,4] },
-          { input: { nums: [-1,-100,3,99], k: 2 }, expected: [3,99,-1,-100] }
+          { input: { nums: [1, 2, 3, 4, 5, 6, 7], k: 3 }, expected: [5, 6, 7, 1, 2, 3, 4] },
+          { input: { nums: [-1, -100, 3, 99], k: 2 }, expected: [3, 99, -1, -100] }
         ]
       }
     ],
@@ -439,14 +439,15 @@ export default function DSAAssessment() {
 
 
   useEffect(() => {
+    const currentQuestion = questions[currentQuestionIndex];
     if (currentQuestion) {
       const savedAnswer = answers[currentQuestion.id]?.[language];
-      setCode(savedAnswer || currentQuestion.templates?.[language] || currentQuestion.template || '');
+      setCode(savedAnswer || currentQuestion.templates?.[language] || languageConfigs[language]?.template || '');
       setShowOutput(false);
       setTestResults([]);
       setAiValidation(null);
     }
-  }, [currentQuestionIndex, currentQuestion, answers, language]);
+  }, [currentQuestionIndex, questions, answers, language]);
 
   useEffect(() => {
     if (!showSetup) {
@@ -523,17 +524,17 @@ Make problems practical and interview-relevant. Ensure variety across selected c
 
       const data = await response.json();
       const content = data.choices?.[0]?.message?.content || '';
-      
+
       // Extract JSON from response
       const jsonStart = content.indexOf('[');
       const jsonEnd = content.lastIndexOf(']');
       if (jsonStart === -1 || jsonEnd === -1) {
         throw new Error('Invalid response format');
       }
-      
+
       const jsonText = content.slice(jsonStart, jsonEnd + 1);
       const generatedQuestions = JSON.parse(jsonText);
-      
+
       // Add templates for each language
       const questionsWithTemplates = generatedQuestions.map(q => ({
         ...q,
@@ -544,11 +545,11 @@ Make problems practical and interview-relevant. Ensure variety across selected c
           ])
         )
       }));
-      
+
       setQuestions(questionsWithTemplates);
       setShowSetup(false);
       setCode(questionsWithTemplates[0]?.templates?.[language] || languageConfigs[language].template);
-      
+
     } catch (error) {
       console.error('Error generating questions:', error);
       alert('Failed to generate questions. Please try again or use predefined questions.');
@@ -583,20 +584,20 @@ Make problems practical and interview-relevant. Ensure variety across selected c
     if (difficulty !== 'mixed') {
       allQuestions = allQuestions.filter(q => q.difficulty === difficulty);
     }
-    
+
     // Shuffle and select the requested number of questions
     const shuffled = [...allQuestions].sort(() => Math.random() - 0.5);
     const selected = shuffled.slice(0, Math.min(questionCount, shuffled.length));
-    
+
     if (selected.length === 0) {
       alert('No questions available for the selected criteria. Please adjust your selection.');
       return;
     }
-    
+
     setQuestions(selected);
     setShowSetup(false);
     setCode(selected[0]?.templates?.[language] || languageConfigs[language].template);
-    
+
     // Update app context
     dispatch({
       type: 'UPDATE_PROGRESS',
@@ -613,7 +614,7 @@ Make problems practical and interview-relevant. Ensure variety across selected c
   const validateSolution = (userCode, question) => {
     const allPassed = testResults.every(r => r.passed);
     const score = allPassed ? 100 : Math.round((testResults.filter(r => r.passed).length / testResults.length) * 100);
-    
+
     return {
       score,
       feedback: allPassed ? 'Great job! All test cases passed.' : 'Some test cases failed. Review your solution.',
@@ -624,27 +625,122 @@ Make problems practical and interview-relevant. Ensure variety across selected c
     };
   };
 
-  const executeCode = (code, testCase) => {
+  // Language-specific code execution using Piston API
+  const executeCodeWithPiston = async (code, testCase, language) => {
     try {
-      // Simple code execution for JavaScript
+      // Map our language names to Piston language identifiers
+      const languageMap = {
+        javascript: { language: 'javascript', version: '18.15.0' },
+        python: { language: 'python', version: '3.10.0' },
+        java: { language: 'java', version: '15.0.2' },
+        cpp: { language: 'c++', version: '10.2.0' },
+        go: { language: 'go', version: '1.16.2' },
+        rust: { language: 'rust', version: '1.68.2' },
+        typescript: { language: 'typescript', version: '5.0.3' },
+        csharp: { language: 'csharp', version: '6.12.0' }
+      };
+
+      const pistonConfig = languageMap[language];
+      if (!pistonConfig) {
+        throw new Error(`Language ${language} not supported`);
+      }
+
+      // Prepare code with test case execution
+      let executableCode = code;
+      const testInput = JSON.stringify(testCase.input);
+
+      // Add test execution code based on language
+      if (language === 'javascript' || language === 'typescript') {
+        const functionMatch = code.match(/function\s+(\w+)/);
+        const functionName = functionMatch ? functionMatch[1] : 'solution';
+        executableCode += `\n\n// Test execution\nconst testInput = ${testInput};\nconst result = ${functionName}(...Object.values(testInput));\nconsole.log(JSON.stringify(result));`;
+      } else if (language === 'python') {
+        const functionMatch = code.match(/def\s+(\w+)/);
+        const functionName = functionMatch ? functionMatch[1] : 'solution';
+        executableCode += `\n\n# Test execution\nimport json\ntest_input = ${testInput}\nresult = ${functionName}(**test_input)\nprint(json.dumps(result))`;
+      } else if (language === 'java') {
+        // For Java, we need to wrap in a main method
+        executableCode = code.replace(/class Solution/, `import java.util.*;\nimport com.google.gson.Gson;\n\nclass Solution`) + `\n\npublic static void main(String[] args) {\n  Solution sol = new Solution();\n  String testInput = "${testInput.replace(/"/g, '\\"')}";\n  // Parse and execute test\n  System.out.println("Execution completed");\n}`;
+      } else if (language === 'cpp') {
+        executableCode += `\n\nint main() {\n  Solution sol;\n  // Test execution\n  std::cout << "Execution completed" << std::endl;\n  return 0;\n}`;
+      }
+
+      // Call Piston API
+      const response = await fetch('https://emkc.org/api/v2/piston/execute', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          language: pistonConfig.language,
+          version: pistonConfig.version,
+          files: [{
+            name: `solution.${languageMap[language].language === 'c++' ? 'cpp' : languageMap[language].language}`,
+            content: executableCode
+          }],
+          stdin: '',
+          args: [],
+          compile_timeout: 10000,
+          run_timeout: 3000,
+          compile_memory_limit: -1,
+          run_memory_limit: -1
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error('Code execution service unavailable');
+      }
+
+      const data = await response.json();
+
+      if (data.compile && data.compile.code !== 0) {
+        return {
+          success: false,
+          error: data.compile.stderr || data.compile.output || 'Compilation error'
+        };
+      }
+
+      if (data.run.code !== 0) {
+        return {
+          success: false,
+          error: data.run.stderr || data.run.output || 'Runtime error'
+        };
+      }
+
+      // Parse output
+      const output = data.run.stdout.trim();
+      let result;
+
+      try {
+        result = JSON.parse(output);
+      } catch {
+        // If not JSON, return as string
+        result = output;
+      }
+
+      return { success: true, result, executionTime: data.run.time };
+    } catch (error) {
+      return { success: false, error: error.message };
+    }
+  };
+
+  // Fallback local execution for JavaScript
+  const executeCodeLocally = (code, testCase) => {
+    try {
       if (language === 'javascript') {
         const functionMatch = code.match(/function\s+(\w+)/);
         const functionName = functionMatch ? functionMatch[1] : 'solution';
         const params = Object.keys(testCase.input);
         const args = Object.values(testCase.input);
-        
+
         const func = new Function(...params, `
           ${code}
           return ${functionName}(${params.join(', ')});
         `);
-        
+
         return { success: true, result: func(...args) };
       } else {
-        // For other languages, simulate execution with mock results
-        return { 
-          success: true, 
-          result: testCase.expected // Return expected result for demo
-        };
+        throw new Error('Local execution only supports JavaScript');
       }
     } catch (error) {
       return { success: false, error: error.message };
@@ -659,82 +755,109 @@ Make problems practical and interview-relevant. Ensure variety across selected c
     return sortedA.every((val, i) => val === sortedB[i]);
   };
 
-  const handleRunCode = () => {
+  const handleRunCode = async () => {
     setIsRunning(true);
     setShowOutput(true);
     setAiValidation(null);
-    
-    const results = (currentQuestion?.testCases || []).map((testCase, index) => {
-      const execution = executeCode(code, testCase);
+
+    const currentQuestion = questions[currentQuestionIndex];
+    if (!currentQuestion) {
+      setIsRunning(false);
+      return;
+    }
+
+    const testCases = currentQuestion.testCases || [];
+    const results = [];
+
+    // Execute test cases sequentially
+    for (let index = 0; index < testCases.length; index++) {
+      const testCase = testCases[index];
+
+      // Try Piston API first, fallback to local execution for JavaScript
+      let execution;
+      try {
+        execution = await executeCodeWithPiston(code, testCase, language);
+      } catch (error) {
+        console.log('Piston API failed, trying local execution:', error);
+        if (language === 'javascript') {
+          execution = executeCodeLocally(code, testCase);
+        } else {
+          execution = {
+            success: false,
+            error: 'Remote execution unavailable. Please try again or use JavaScript for local testing.'
+          };
+        }
+      }
 
       if (!execution.success) {
-        return {
+        results.push({
           caseNumber: index + 1,
           passed: false,
           error: execution.error,
           input: testCase.input,
-          expected: testCase.expected
-        };
+          expected: testCase.expected,
+          executionTime: execution.executionTime
+        });
+        continue;
       }
 
-      const passed = Array.isArray(testCase.expected) 
+      const passed = Array.isArray(testCase.expected)
         ? arraysEqual(execution.result, testCase.expected)
         : JSON.stringify(execution.result) === JSON.stringify(testCase.expected);
 
-      return {
+      results.push({
         caseNumber: index + 1,
         passed,
         input: testCase.input,
         output: execution.result,
-        expected: testCase.expected
-      };
-    });
+        expected: testCase.expected,
+        executionTime: execution.executionTime
+      });
+    }
 
     setTestResults(results);
     setIsRunning(false);
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
+    const currentQuestion = questions[currentQuestionIndex];
     if (!currentQuestion) return;
-    
-    // For JavaScript, run tests first
-    if (language === 'javascript') {
-      handleRunCode();
-      
-      setTimeout(() => {
-        const allPassed = testResults.every(r => r.passed);
-        if (allPassed && !completedQuestions.includes(currentQuestion.id)) {
-          setCompletedQuestions([...completedQuestions, currentQuestion.id]);
-        }
-        
-        // Save answer and validate
-        saveAnswerAndValidate();
-      }, 500);
-    } else {
-      // For other languages, just save the code
+
+    // Run tests first for all languages
+    await handleRunCode();
+
+    // Wait a bit for state to update
+    setTimeout(() => {
+      const allPassed = testResults.every(r => r.passed);
+      if (allPassed && !completedQuestions.includes(currentQuestion.id)) {
+        setCompletedQuestions([...completedQuestions, currentQuestion.id]);
+      }
+
+      // Save answer and validate
       saveAnswerAndValidate();
-    }
+    }, 500);
   };
 
   const saveAnswerAndValidate = () => {
+    const currentQuestion = questions[currentQuestionIndex];
     if (!currentQuestion) return;
-    
+
     // Save code for current language
     const questionAnswers = answers[currentQuestion.id] || {};
-    const newAnswers = { 
-      ...answers, 
+    const newAnswers = {
+      ...answers,
       [currentQuestion.id]: {
         ...questionAnswers,
         [language]: code
       }
     };
     setAnswers(newAnswers);
-    
+
     // Update app context
-    const newCompletedQuestions = completedQuestions.includes(currentQuestion.id) 
-      ? completedQuestions 
+    const newCompletedQuestions = completedQuestions.includes(currentQuestion.id)
+      ? completedQuestions
       : [...completedQuestions, currentQuestion.id];
-    
+
     dispatch({
       type: 'UPDATE_PROGRESS',
       payload: {
@@ -746,7 +869,7 @@ Make problems practical and interview-relevant. Ensure variety across selected c
         }
       }
     });
-    
+
     // Simple validation
     const validation = validateSolution(code, currentQuestion);
     setAiValidation(validation);
@@ -785,9 +908,8 @@ Make problems practical and interview-relevant. Ensure variety across selected c
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-3">Question Generation Mode</label>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <label className={`flex items-center p-4 border-2 rounded-lg cursor-pointer transition-all ${
-                    !useRandomGenerator ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:border-gray-300'
-                  }`}>
+                  <label className={`flex items-center p-4 border-2 rounded-lg cursor-pointer transition-all ${!useRandomGenerator ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:border-gray-300'
+                    }`}>
                     <input
                       type="radio"
                       checked={!useRandomGenerator}
@@ -802,10 +924,9 @@ Make problems practical and interview-relevant. Ensure variety across selected c
                       <p className="text-sm text-gray-600">Hand-picked, tested problems from our question bank</p>
                     </div>
                   </label>
-                  
-                  <label className={`flex items-center p-4 border-2 rounded-lg cursor-pointer transition-all ${
-                    useRandomGenerator ? 'border-purple-500 bg-purple-50' : 'border-gray-200 hover:border-gray-300'
-                  }`}>
+
+                  <label className={`flex items-center p-4 border-2 rounded-lg cursor-pointer transition-all ${useRandomGenerator ? 'border-purple-500 bg-purple-50' : 'border-gray-200 hover:border-gray-300'
+                    }`}>
                     <input
                       type="radio"
                       checked={useRandomGenerator}
@@ -834,11 +955,10 @@ Make problems practical and interview-relevant. Ensure variety across selected c
                     return (
                       <label
                         key={key}
-                        className={`flex items-start p-4 border-2 rounded-lg cursor-pointer transition-all ${
-                          selectedCategories[key]
-                            ? 'border-blue-500 bg-blue-50'
-                            : 'border-gray-200 hover:border-gray-300'
-                        }`}
+                        className={`flex items-start p-4 border-2 rounded-lg cursor-pointer transition-all ${selectedCategories[key]
+                          ? 'border-blue-500 bg-blue-50'
+                          : 'border-gray-200 hover:border-gray-300'
+                          }`}
                       >
                         <input
                           type="checkbox"
@@ -1070,7 +1190,7 @@ Make problems practical and interview-relevant. Ensure variety across selected c
                     <p className="text-sm text-purple-700">{aiValidation.feedback}</p>
                   </div>
                 </div>
-                
+
                 {aiValidation.score !== undefined && (
                   <div className="bg-white rounded-lg p-3 mb-3">
                     <span className="font-semibold">Score:</span>
@@ -1168,7 +1288,7 @@ Make problems practical and interview-relevant. Ensure variety across selected c
                     </div>
                   )}
                 </div>
-                
+
                 <div className="space-y-3">
                   {testResults.map((result, i) => (
                     <div key={i} className={`p-3 rounded-lg border-2 ${result.passed ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'}`}>
@@ -1176,7 +1296,7 @@ Make problems practical and interview-relevant. Ensure variety across selected c
                         <span className="text-sm font-semibold">Test {result.caseNumber}</span>
                         {result.passed ? <CheckCircle className="w-5 h-5 text-green-600" /> : <XCircle className="w-5 h-5 text-red-600" />}
                       </div>
-                      
+
                       {result.error ? (
                         <div className="text-sm text-red-700 font-mono">{result.error}</div>
                       ) : (
@@ -1209,11 +1329,10 @@ Make problems practical and interview-relevant. Ensure variety across selected c
                   <button
                     key={i}
                     onClick={() => setCurrentQuestionIndex(i)}
-                    className={`w-8 h-8 rounded-lg text-sm font-medium ${
-                      completedQuestions.includes(questions[i]?.id) ? 'bg-green-100 text-green-800' :
+                    className={`w-8 h-8 rounded-lg text-sm font-medium ${completedQuestions.includes(questions[i]?.id) ? 'bg-green-100 text-green-800' :
                       i === currentQuestionIndex ? 'bg-blue-100 text-blue-800' :
-                      'bg-gray-100 text-gray-600'
-                    }`}
+                        'bg-gray-100 text-gray-600'
+                      }`}
                   >
                     {i + 1}
                   </button>
