@@ -890,6 +890,77 @@ Make problems practical and interview-relevant. Ensure variety across selected c
     return colors[difficulty?.toLowerCase()] || 'bg-gray-100 text-gray-800';
   };
 
+  const saveAssessmentResults = () => {
+    const totalQuestions = questions.length;
+    const solvedQuestions = completedQuestions.length;
+    const solvedPercentage = Math.round((solvedQuestions / totalQuestions) * 100);
+
+    const categoryStats = {};
+    questions.forEach((q) => {
+      const category = q.category;
+      if (!categoryStats[category]) {
+        categoryStats[category] = { total: 0, solved: 0, name: dsaCategories[category]?.name || category };
+      }
+      categoryStats[category].total++;
+      if (completedQuestions.includes(q.id)) {
+        categoryStats[category].solved++;
+      }
+    });
+
+    const difficultyStats = { easy: { total: 0, solved: 0 }, medium: { total: 0, solved: 0 }, hard: { total: 0, solved: 0 } };
+    questions.forEach((q) => {
+      const diff = q.difficulty?.toLowerCase() || 'medium';
+      if (difficultyStats[diff]) {
+        difficultyStats[diff].total++;
+        if (completedQuestions.includes(q.id)) {
+          difficultyStats[diff].solved++;
+        }
+      }
+    });
+
+    const languageUsage = {};
+    Object.values(answers).forEach((answerObj: any) => {
+      Object.keys(answerObj).forEach((lang) => {
+        languageUsage[lang] = (languageUsage[lang] || 0) + 1;
+      });
+    });
+
+    const initialTime = 45 * 60;
+    const timeSpent = initialTime - timeLeft;
+    const avgTimePerQuestion = solvedQuestions > 0 ? Math.round(timeSpent / solvedQuestions / 60 * 10) / 10 : 0;
+
+    const strongAreas = Object.entries(categoryStats)
+      .filter(([, stats]: [string, any]) => stats.total > 0 && (stats.solved / stats.total) >= 0.7)
+      .map(([, stats]: [string, any]) => stats.name)
+      .join(', ') || 'None yet';
+
+    const weakAreas = Object.entries(categoryStats)
+      .filter(([, stats]: [string, any]) => stats.total > 0 && (stats.solved / stats.total) < 0.5)
+      .map(([, stats]: [string, any]) => stats.name)
+      .join(', ') || 'None';
+
+    dispatch({
+      type: 'UPDATE_PROGRESS',
+      payload: {
+        dsa: {
+          currentQuestion: currentQuestionIndex,
+          totalQuestions: totalQuestions,
+          completedQuestions: completedQuestions,
+          answers: answers,
+          timeSpent: timeSpent,
+          solvedCount: solvedQuestions,
+          successRate: solvedPercentage,
+          avgTimePerQuestion: avgTimePerQuestion,
+          categoryStats: categoryStats,
+          difficultyStats: difficultyStats,
+          languageUsage: languageUsage,
+          strongAreas: strongAreas,
+          weakAreas: weakAreas,
+        }
+      }
+    });
+  };
+
   if (showSetup) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 p-6">
@@ -1217,8 +1288,8 @@ Make problems practical and interview-relevant. Ensure variety across selected c
                       <div className="w-full bg-gray-200 rounded-full h-2">
                         <div
                           className={`h-2 rounded-full ${percentage >= 80 ? 'bg-green-500' :
-                              percentage >= 60 ? 'bg-blue-500' :
-                                percentage >= 40 ? 'bg-yellow-500' : 'bg-red-500'
+                            percentage >= 60 ? 'bg-blue-500' :
+                              percentage >= 40 ? 'bg-yellow-500' : 'bg-red-500'
                             }`}
                           style={{ width: `${percentage}%` }}
                         ></div>
@@ -1665,8 +1736,8 @@ Make problems practical and interview-relevant. Ensure variety across selected c
               {currentQuestionIndex === questions.length - 1 ? (
                 <button
                   onClick={() => {
+                    saveAssessmentResults();
                     setIsCompleted(true);
-                    // Navigate to results after a short delay
                     setTimeout(() => {
                       window.location.href = '/results';
                     }, 2000);

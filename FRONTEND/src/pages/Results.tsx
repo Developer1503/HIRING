@@ -5,10 +5,10 @@ import ProgressRing from '../components/ProgressRing';
 import { generateMockAnalytics } from '../data/mockData';
 import { resumeApi } from '../services/resumeApi';
 import { generateLiveTestResult } from '../utils/generateTestResult';
-import { 
-  Trophy, 
-  TrendingUp, 
-  Download, 
+import {
+  Trophy,
+  TrendingUp,
+  Download,
   Share2,
   Code,
   Brain,
@@ -35,7 +35,7 @@ export default function Results() {
   const dsaScore = Math.min(100, Math.round((state.assessmentProgress.dsa.completedQuestions.length / state.assessmentProgress.dsa.totalQuestions) * 100) || 70);
   const aptitudeScore = Math.min(100, Math.round((Object.keys(state.assessmentProgress.aptitude.answers).length / state.assessmentProgress.aptitude.totalQuestions) * 100) || 76);
   const interviewScore = Math.min(100, Math.round((Object.keys(state.assessmentProgress.interview.recordings).length / state.assessmentProgress.interview.totalQuestions) * 100) || 88);
-  
+
   const overallScore = Math.round((dsaScore + aptitudeScore + interviewScore) / 3);
   const percentile = mockAnalytics.percentile;
 
@@ -74,7 +74,7 @@ export default function Results() {
 
     // Generate the comprehensive test result
     const testResult = generateLiveTestResult();
-    
+
     // Update with current user info
     const result = {
       ...testResult,
@@ -84,7 +84,7 @@ export default function Results() {
     };
 
     setComprehensiveResult(result);
-    
+
     // Also set the resume analysis for display
     if (result.resumeAnalysis) {
       setLatestResumeAnalysis(result.resumeAnalysis);
@@ -104,7 +104,7 @@ export default function Results() {
       };
       existingResults.unshift(resultWithTimestamp);
       localStorage.setItem('savedResults', JSON.stringify(existingResults));
-      
+
       setSavedResult(resultWithTimestamp);
     } catch (error) {
       console.error('Error saving results:', error);
@@ -153,7 +153,7 @@ export default function Results() {
               You scored better than <span className="font-semibold text-blue-600">{percentile}%</span> of candidates who took this assessment.
             </p>
           </div>
-          
+
           <div className="flex justify-center">
             <ProgressRing progress={overallScore} size={200}>
               <div className="text-center">
@@ -186,19 +186,29 @@ export default function Results() {
           <div className="space-y-3 text-sm">
             <div className="flex justify-between">
               <span className="text-gray-600">Questions Solved:</span>
-              <span className="font-medium">7/10</span>
+              <span className="font-medium">
+                {state.assessmentProgress.dsa.solvedCount || state.assessmentProgress.dsa.completedQuestions.length}/{state.assessmentProgress.dsa.totalQuestions}
+              </span>
             </div>
             <div className="flex justify-between">
               <span className="text-gray-600">Time Efficiency:</span>
-              <span className="font-medium">4.2 mins avg</span>
+              <span className="font-medium">
+                {state.assessmentProgress.dsa.avgTimePerQuestion
+                  ? `${state.assessmentProgress.dsa.avgTimePerQuestion} mins avg`
+                  : '4.2 mins avg'}
+              </span>
             </div>
             <div className="flex justify-between">
               <span className="text-gray-600">Strong Areas:</span>
-              <span className="font-medium text-green-600">Arrays, Strings</span>
+              <span className="font-medium text-green-600">
+                {state.assessmentProgress.dsa.strongAreas || 'Arrays, Strings'}
+              </span>
             </div>
             <div className="flex justify-between">
               <span className="text-gray-600">Improve:</span>
-              <span className="font-medium text-red-600">DP, Trees</span>
+              <span className="font-medium text-red-600">
+                {state.assessmentProgress.dsa.weakAreas || 'DP, Trees'}
+              </span>
             </div>
           </div>
 
@@ -303,7 +313,7 @@ export default function Results() {
             <Award className="w-6 h-6 text-green-600 mr-3" />
             <h3 className="text-xl font-semibold text-gray-900">Strengths Identified</h3>
           </div>
-          
+
           <div className="space-y-3">
             {mockAnalytics.strengths.map((strength, index) => (
               <div key={index} className="flex items-center p-3 bg-green-50 rounded-lg">
@@ -320,7 +330,7 @@ export default function Results() {
             <Target className="w-6 h-6 text-orange-600 mr-3" />
             <h3 className="text-xl font-semibold text-gray-900">Areas for Improvement</h3>
           </div>
-          
+
           <div className="space-y-3">
             {mockAnalytics.weaknesses.map((weakness, index) => (
               <div key={index} className="flex items-center p-3 bg-orange-50 rounded-lg">
@@ -359,17 +369,17 @@ export default function Results() {
                   <div className="text-2xl font-bold text-purple-600">{latestResumeAnalysis.analysis.overallScore}/100</div>
                   <div className="text-sm text-gray-600">Overall Score</div>
                 </div>
-                
+
                 <div className="text-center p-4 bg-green-50 rounded-lg">
                   <div className="text-2xl font-bold text-green-600">{latestResumeAnalysis.analysis.atsScore}/100</div>
                   <div className="text-sm text-gray-600">ATS Score</div>
                 </div>
-                
+
                 <div className="text-center p-4 bg-blue-50 rounded-lg">
                   <div className="text-2xl font-bold text-blue-600">{latestResumeAnalysis.analysis.readabilityScore}/100</div>
                   <div className="text-sm text-gray-600">Readability</div>
                 </div>
-                
+
                 <div className="text-center p-4 bg-orange-50 rounded-lg">
                   <div className="text-2xl font-bold text-orange-600">{latestResumeAnalysis.analysis.keywords.technical.length}</div>
                   <div className="text-sm text-gray-600">Tech Skills Found</div>
@@ -384,11 +394,10 @@ export default function Results() {
                     <div key={section} className="border border-gray-200 rounded-lg p-4">
                       <div className="flex items-center justify-between mb-2">
                         <h5 className="font-medium text-gray-900 capitalize">{section}</h5>
-                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                          data.score >= 80 ? 'text-green-600 bg-green-100' :
-                          data.score >= 60 ? 'text-yellow-600 bg-yellow-100' :
-                          'text-red-600 bg-red-100'
-                        }`}>
+                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${data.score >= 80 ? 'text-green-600 bg-green-100' :
+                            data.score >= 60 ? 'text-yellow-600 bg-yellow-100' :
+                              'text-red-600 bg-red-100'
+                          }`}>
                           {data.score}/100
                         </span>
                       </div>
@@ -413,7 +422,7 @@ export default function Results() {
                     ))}
                   </div>
                 </div>
-                
+
                 <div>
                   <h4 className="font-medium text-blue-800 mb-3 flex items-center">
                     <Award className="w-4 h-4 mr-2" />
@@ -427,7 +436,7 @@ export default function Results() {
                     ))}
                   </div>
                 </div>
-                
+
                 <div>
                   <h4 className="font-medium text-orange-800 mb-3 flex items-center">
                     <Target className="w-4 h-4 mr-2" />
@@ -451,7 +460,7 @@ export default function Results() {
               <Target className="w-6 h-6 text-blue-600 mr-3" />
               <h3 className="text-xl font-semibold text-gray-900">Personalized Improvement Plan</h3>
             </div>
-            
+
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <div className="p-6 bg-blue-50 rounded-lg border border-blue-100">
                 <h4 className="font-semibold text-blue-900 mb-3">Immediate Actions (Next 2 weeks)</h4>
@@ -462,7 +471,7 @@ export default function Results() {
                   <li>• Create GitHub repositories for projects</li>
                 </ul>
               </div>
-              
+
               <div className="p-6 bg-emerald-50 rounded-lg border border-emerald-100">
                 <h4 className="font-semibold text-emerald-900 mb-3">Medium-term Goals (1-2 months)</h4>
                 <ul className="space-y-2 text-sm text-emerald-800">
@@ -472,7 +481,7 @@ export default function Results() {
                   <li>• Add live demo URLs to projects</li>
                 </ul>
               </div>
-              
+
               <div className="p-6 bg-purple-50 rounded-lg border border-purple-100">
                 <h4 className="font-semibold text-purple-900 mb-3">Long-term Development (3-6 months)</h4>
                 <ul className="space-y-2 text-sm text-purple-800">
@@ -488,26 +497,26 @@ export default function Results() {
           {/* Performance Comparison */}
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-8">
             <h3 className="text-xl font-semibold text-gray-900 mb-6">Performance vs Industry Benchmarks</h3>
-            
+
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
               <div className="text-center p-4 border border-gray-200 rounded-lg">
                 <div className="text-lg font-bold text-gray-900">73rd</div>
                 <div className="text-sm text-gray-600 mb-2">Percentile Ranking</div>
                 <div className="text-xs text-green-600">Above Average</div>
               </div>
-              
+
               <div className="text-center p-4 border border-gray-200 rounded-lg">
                 <div className="text-lg font-bold text-gray-900">70% vs 65%</div>
                 <div className="text-sm text-gray-600 mb-2">DSA Score vs Avg</div>
                 <div className="text-xs text-green-600">+5% Above Average</div>
               </div>
-              
+
               <div className="text-center p-4 border border-gray-200 rounded-lg">
                 <div className="text-lg font-bold text-gray-900">88% vs 75%</div>
                 <div className="text-sm text-gray-600 mb-2">Interview vs Avg</div>
                 <div className="text-xs text-green-600">+13% Above Average</div>
               </div>
-              
+
               <div className="text-center p-4 border border-gray-200 rounded-lg">
                 <div className="text-lg font-bold text-gray-900">78% vs 68%</div>
                 <div className="text-sm text-gray-600 mb-2">Resume vs Avg</div>
@@ -596,7 +605,7 @@ export default function Results() {
           <BarChart3 className="w-5 h-5 mr-2" />
           View Detailed Analytics
         </Link>
-        
+
         <Link
           to="/resume-analysis"
           className="inline-flex items-center justify-center px-6 py-3 bg-purple-600 text-white font-semibold rounded-lg hover:bg-purple-700 transition-colors"
@@ -604,12 +613,12 @@ export default function Results() {
           <FileText className="w-5 h-5 mr-2" />
           Resume Analysis
         </Link>
-        
+
         <button className="inline-flex items-center justify-center px-6 py-3 border border-blue-600 text-blue-600 font-semibold rounded-lg hover:bg-blue-50 transition-colors">
           <RefreshCw className="w-5 h-5 mr-2" />
           Retake Assessment
         </button>
-        
+
         <button className="inline-flex items-center justify-center px-6 py-3 border border-gray-300 text-gray-700 font-semibold rounded-lg hover:bg-gray-50 transition-colors">
           <Download className="w-5 h-5 mr-2" />
           Download Report
@@ -619,20 +628,20 @@ export default function Results() {
       {/* Time Analysis */}
       <div className="mt-8 bg-white rounded-xl shadow-sm border border-gray-200 p-6">
         <h3 className="text-xl font-semibold text-gray-900 mb-4">Time Analysis</h3>
-        
+
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <div className="text-center p-4 bg-blue-50 rounded-lg">
             <Clock className="w-8 h-8 text-blue-600 mx-auto mb-2" />
             <div className="text-2xl font-bold text-blue-600">45 mins</div>
             <div className="text-sm text-gray-600">Total Time Spent</div>
           </div>
-          
+
           <div className="text-center p-4 bg-emerald-50 rounded-lg">
             <TrendingUp className="w-8 h-8 text-emerald-600 mx-auto mb-2" />
             <div className="text-2xl font-bold text-emerald-600">85%</div>
             <div className="text-sm text-gray-600">Time Efficiency</div>
           </div>
-          
+
           <div className="text-center p-4 bg-purple-50 rounded-lg">
             <Target className="w-8 h-8 text-purple-600 mx-auto mb-2" />
             <div className="text-2xl font-bold text-purple-600">Good</div>

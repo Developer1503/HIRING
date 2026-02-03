@@ -53,6 +53,14 @@ export interface AssessmentProgress {
     completedQuestions: string[];
     answers: { [questionId: string]: string };
     timeSpent: number;
+    solvedCount?: number;
+    successRate?: number;
+    avgTimePerQuestion?: number;
+    categoryStats?: { [category: string]: { total: number; solved: number; name: string } };
+    difficultyStats?: { easy: { total: number; solved: number }; medium: { total: number; solved: number }; hard: { total: number; solved: number } };
+    languageUsage?: { [language: string]: number };
+    strongAreas?: string;
+    weakAreas?: string;
   };
   aptitude: {
     currentQuestion: number;
