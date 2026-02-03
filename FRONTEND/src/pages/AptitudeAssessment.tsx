@@ -22,7 +22,6 @@ import {
   Settings,
   X
 } from "lucide-react";
-import React from 'react';
 import Confetti from "react-confetti";
 import { useWindowSize } from "react-use";
 
