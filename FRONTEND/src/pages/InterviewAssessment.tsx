@@ -98,10 +98,15 @@ export default function AIInterviewGenerator() {
 
       recognitionRef.current.onresult = (event: any) => {
         let transcript = '';
-        for (let i = event.resultIndex; i < event.results.length; i++) {
+        // Start from index 0 to capture the full transcript, including text before pauses
+        for (let i = 0; i < event.results.length; i++) {
           transcript += event.results[i][0].transcript;
+          // Add space between results for better readability
+          if (i < event.results.length - 1) {
+            transcript += ' ';
+          }
         }
-        setCurrentTranscript(transcript);
+        setCurrentTranscript(transcript.trim());
       };
 
       recognitionRef.current.onerror = (event: any) => {
@@ -1413,10 +1418,10 @@ Return ONLY valid JSON.`;
             <div className="bg-white rounded-2xl shadow-lg border border-gray-200 p-8">
               <div className="text-center mb-6">
                 <div className={`inline-flex items-center justify-center w-20 h-20 rounded-full mb-4 ${evaluationResults.overallScore >= 80 ? 'bg-green-100' :
-                    evaluationResults.overallScore >= 60 ? 'bg-yellow-100' : 'bg-red-100'
+                  evaluationResults.overallScore >= 60 ? 'bg-yellow-100' : 'bg-red-100'
                   }`}>
                   <Check className={`w-10 h-10 ${evaluationResults.overallScore >= 80 ? 'text-green-600' :
-                      evaluationResults.overallScore >= 60 ? 'text-yellow-600' : 'text-red-600'
+                    evaluationResults.overallScore >= 60 ? 'text-yellow-600' : 'text-red-600'
                     }`} />
                 </div>
                 <h2 className="text-4xl font-bold text-gray-900 mb-2">
@@ -1527,8 +1532,8 @@ Return ONLY valid JSON.`;
 
             {/* Recommendation */}
             <div className={`rounded-2xl shadow-lg p-8 text-center text-white ${evaluationResults.recommendation === 'hire' ? 'bg-gradient-to-r from-green-600 to-green-700' :
-                evaluationResults.recommendation === 'consider' ? 'bg-gradient-to-r from-yellow-600 to-orange-600' :
-                  'bg-gradient-to-r from-red-600 to-red-700'
+              evaluationResults.recommendation === 'consider' ? 'bg-gradient-to-r from-yellow-600 to-orange-600' :
+                'bg-gradient-to-r from-red-600 to-red-700'
               }`}>
               <h3 className="text-3xl font-bold mb-2">
                 Recommendation: {evaluationResults.recommendation.toUpperCase()}
