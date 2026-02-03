@@ -19,7 +19,8 @@ import {
   Database,
   FileText,
   Zap,
-  Settings
+  Settings,
+  X
 } from "lucide-react";
 import Confetti from "react-confetti";
 import { useWindowSize } from "react-use";
@@ -48,6 +49,8 @@ export default function AptitudeAssessment() {
   const [timeLeft, setTimeLeft] = useState(30 * 60);
   const [markedForReview, setMarkedForReview] = useState([]);
   const [showSubcategories, setShowSubcategories] = useState(false);
+  const [showCalculator, setShowCalculator] = useState(false);
+  const [calculatorDisplay, setCalculatorDisplay] = useState('0');
   const { width, height } = useWindowSize();
 
   // Comprehensive category definitions with detailed subcategories
@@ -160,7 +163,7 @@ export default function AptitudeAssessment() {
         },
         {
           id: 2,
-          category: "quantitative", 
+          category: "quantitative",
           subcategory: "arithmetic",
           question: "The ratio of boys to girls in a class is 3:2. If there are 15 boys, how many girls are there?",
           options: ["8", "10", "12", "15"],
@@ -171,7 +174,7 @@ export default function AptitudeAssessment() {
         {
           id: 3,
           category: "quantitative",
-          subcategory: "arithmetic", 
+          subcategory: "arithmetic",
           question: "A shopkeeper sells an item for ₹450 and makes a profit of 25%. What was the cost price?",
           options: ["₹350", "₹360", "₹375", "₹400"],
           correct: 1,
@@ -399,7 +402,7 @@ export default function AptitudeAssessment() {
     }
 
     let selectedQuestions = [];
-    
+
     // Collect questions from enabled categories
     enabledCategories.forEach(category => {
       if (category === 'quantitative' || category === 'logical' || category === 'verbal' || category === 'technical') {
@@ -426,7 +429,7 @@ export default function AptitudeAssessment() {
     selectedQuestions = selectedQuestions
       .sort(() => Math.random() - 0.5)
       .slice(0, Math.min(numQuestions, selectedQuestions.length));
-    
+
     setQuestions(selectedQuestions);
     setTestMode(true);
     setCurrentQuestionIndex(0);
@@ -434,7 +437,7 @@ export default function AptitudeAssessment() {
     setSubmitted(false);
     setScore(0);
     setTimeLeft(timeLimit * 60);
-    
+
     // Update app context
     dispatch({
       type: 'UPDATE_PROGRESS',
@@ -454,7 +457,7 @@ export default function AptitudeAssessment() {
     if (!submitted) {
       const newAnswers = { ...userAnswers, [currentQuestionIndex]: optionIndex };
       setUserAnswers(newAnswers);
-      
+
       // Update app context
       dispatch({
         type: 'UPDATE_PROGRESS',
@@ -473,9 +476,9 @@ export default function AptitudeAssessment() {
     const newMarked = markedForReview.includes(currentQuestionIndex)
       ? markedForReview.filter(i => i !== currentQuestionIndex)
       : [...markedForReview, currentQuestionIndex];
-    
+
     setMarkedForReview(newMarked);
-    
+
     dispatch({
       type: 'UPDATE_PROGRESS',
       payload: {
@@ -494,7 +497,7 @@ export default function AptitudeAssessment() {
     });
     setScore(correctCount);
     setSubmitted(true);
-    
+
     // Calculate category-wise performance
     const categoryPerformance = {};
     questions.forEach((q, i) => {
@@ -540,6 +543,30 @@ export default function AptitudeAssessment() {
     return colors[category] || 'bg-gray-100 text-gray-800';
   };
 
+  // Calculator functions
+  const handleCalculatorClick = (value: string) => {
+    if (value === 'C') {
+      setCalculatorDisplay('0');
+    } else if (value === '=') {
+      try {
+        // Safe evaluation - only allows numbers and basic operators
+        const result = Function('"use strict"; return (' + calculatorDisplay + ')')();
+        setCalculatorDisplay(String(result));
+      } catch (error) {
+        setCalculatorDisplay('Error');
+        setTimeout(() => setCalculatorDisplay('0'), 1000);
+      }
+    } else if (value === '←') {
+      setCalculatorDisplay(prev => prev.length > 1 ? prev.slice(0, -1) : '0');
+    } else {
+      setCalculatorDisplay(prev => {
+        if (prev === '0' && value !== '.') return value;
+        if (prev === 'Error') return value;
+        return prev + value;
+      });
+    }
+  };
+
   // Results screen
   if (submitted) {
     const percentage = Math.round((score / questions.length) * 100);
@@ -560,24 +587,21 @@ export default function AptitudeAssessment() {
           {percentage >= 80 && (
             <Confetti width={width} height={height} numberOfPieces={300} />
           )}
-          
+
           <div className="bg-white rounded-2xl shadow-lg border p-8 mb-6">
             <div className="text-center mb-6">
-              <div className={`inline-flex items-center justify-center w-16 h-16 rounded-full mb-4 ${
-                percentage >= 80 ? 'bg-green-100' : percentage >= 60 ? 'bg-yellow-100' : 'bg-red-100'
-              }`}>
-                <CheckCircle className={`w-8 h-8 ${
-                  percentage >= 80 ? 'text-green-600' : percentage >= 60 ? 'text-yellow-600' : 'text-red-600'
-                }`} />
+              <div className={`inline-flex items-center justify-center w-16 h-16 rounded-full mb-4 ${percentage >= 80 ? 'bg-green-100' : percentage >= 60 ? 'bg-yellow-100' : 'bg-red-100'
+                }`}>
+                <CheckCircle className={`w-8 h-8 ${percentage >= 80 ? 'text-green-600' : percentage >= 60 ? 'text-yellow-600' : 'text-red-600'
+                  }`} />
               </div>
               <h1 className="text-3xl font-bold text-gray-900 mb-2">Assessment Complete!</h1>
               <p className="text-gray-600 mb-4">
                 You scored {score} out of {questions.length} questions correctly
               </p>
               <div className="text-4xl font-bold text-blue-600 mb-2">{percentage}%</div>
-              <div className={`text-lg font-medium ${
-                percentage >= 80 ? 'text-green-600' : percentage >= 60 ? 'text-yellow-600' : 'text-red-600'
-              }`}>
+              <div className={`text-lg font-medium ${percentage >= 80 ? 'text-green-600' : percentage >= 60 ? 'text-yellow-600' : 'text-red-600'
+                }`}>
                 {percentage >= 80 ? 'Excellent!' : percentage >= 60 ? 'Good Job!' : 'Keep Practicing!'}
               </div>
             </div>
@@ -590,7 +614,7 @@ export default function AptitudeAssessment() {
                   const info = categoryInfo[category];
                   const IconComponent = info?.icon || Brain;
                   const categoryPercentage = Math.round((perf.correct / perf.total) * 100);
-                  
+
                   return (
                     <div key={category} className="border border-gray-200 rounded-lg p-4">
                       <div className="flex items-center justify-between mb-2">
@@ -604,10 +628,9 @@ export default function AptitudeAssessment() {
                       </div>
                       <div className="w-full bg-gray-200 rounded-full h-2 mb-1">
                         <div
-                          className={`h-2 rounded-full ${
-                            categoryPercentage >= 80 ? 'bg-green-500' : 
+                          className={`h-2 rounded-full ${categoryPercentage >= 80 ? 'bg-green-500' :
                             categoryPercentage >= 60 ? 'bg-yellow-500' : 'bg-red-500'
-                          }`}
+                            }`}
                           style={{ width: `${categoryPercentage}%` }}
                         ></div>
                       </div>
@@ -674,18 +697,17 @@ export default function AptitudeAssessment() {
                     {showSubcategories ? 'Hide' : 'Show'} Subcategories
                   </button>
                 </div>
-                
+
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {Object.entries(categoryInfo).map(([key, info]) => {
                     const IconComponent = info.icon;
                     return (
                       <div key={key} className="border border-gray-200 rounded-lg">
                         <label
-                          className={`flex items-start p-4 cursor-pointer transition-all ${
-                            selectedCategories[key]
-                              ? 'bg-blue-50 border-blue-200'
-                              : 'hover:bg-gray-50'
-                          }`}
+                          className={`flex items-start p-4 cursor-pointer transition-all ${selectedCategories[key]
+                            ? 'bg-blue-50 border-blue-200'
+                            : 'hover:bg-gray-50'
+                            }`}
                         >
                           <input
                             type="checkbox"
@@ -704,7 +726,7 @@ export default function AptitudeAssessment() {
                               <span className="font-medium text-gray-900">{info.name}</span>
                             </div>
                             <p className="text-sm text-gray-600 mb-2">{info.description}</p>
-                            
+
                             {showSubcategories && info.subcategories && (
                               <div className="mt-3 space-y-1">
                                 <p className="text-xs font-medium text-gray-700 mb-2">Subcategories:</p>
@@ -818,18 +840,77 @@ export default function AptitudeAssessment() {
                   </span>
                 </div>
                 <button
+                  onClick={() => setShowCalculator(!showCalculator)}
+                  className="px-3 py-1 rounded text-sm font-medium bg-blue-100 text-blue-800 hover:bg-blue-200 flex items-center space-x-1 transition-colors"
+                  title="Calculator"
+                >
+                  <Calculator className="w-4 h-4" />
+                  <span>Calculator</span>
+                </button>
+                <button
                   onClick={toggleMarkForReview}
-                  className={`px-3 py-1 rounded text-sm font-medium ${
-                    markedForReview.includes(currentQuestionIndex)
-                      ? 'bg-yellow-100 text-yellow-800'
-                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                  }`}
+                  className={`px-3 py-1 rounded text-sm font-medium ${markedForReview.includes(currentQuestionIndex)
+                    ? 'bg-yellow-100 text-yellow-800'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    }`}
                 >
                   {markedForReview.includes(currentQuestionIndex) ? 'Marked' : 'Mark for Review'}
                 </button>
               </div>
             </div>
           </div>
+
+          {/* Calculator Popup */}
+          {showCalculator && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onClick={() => setShowCalculator(false)}>
+              <div className="bg-white rounded-2xl shadow-2xl p-6 w-80" onClick={(e) => e.stopPropagation()}>
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-semibold text-gray-900 flex items-center">
+                    <Calculator className="w-5 h-5 mr-2 text-blue-600" />
+                    Calculator
+                  </h3>
+                  <button
+                    onClick={() => setShowCalculator(false)}
+                    className="text-gray-400 hover:text-gray-600 transition-colors"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+
+                {/* Display */}
+                <div className="bg-gray-100 rounded-lg p-4 mb-4 border-2 border-gray-200">
+                  <div className="text-right text-2xl font-mono font-semibold text-gray-900 break-all">
+                    {calculatorDisplay}
+                  </div>
+                </div>
+
+                {/* Buttons */}
+                <div className="grid grid-cols-4 gap-2">
+                  {[['C', '←', '/', '*'], ['7', '8', '9', '-'], ['4', '5', '6', '+'], ['1', '2', '3', '='], ['0', '.', '00', '=']].map((row, i) => (
+                    <React.Fragment key={i}>
+                      {row.map((btn) => (
+                        <button
+                          key={btn + i}
+                          onClick={() => handleCalculatorClick(btn)}
+                          className={`
+                            p-3 rounded-lg font-semibold text-lg transition-all active:scale-95
+                            ${btn === '=' ? 'bg-blue-600 text-white hover:bg-blue-700 col-span-1' :
+                              btn === 'C' ? 'bg-red-500 text-white hover:bg-red-600' :
+                                ['/', '*', '-', '+'].includes(btn) ? 'bg-orange-500 text-white hover:bg-orange-600' :
+                                  btn === '←' ? 'bg-yellow-500 text-white hover:bg-yellow-600' :
+                                    'bg-gray-200 text-gray-900 hover:bg-gray-300'
+                            }
+                          `}
+                        >
+                          {btn}
+                        </button>
+                      ))}
+                    </React.Fragment>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Question */}
           <div className="max-w-4xl mx-auto p-6">
@@ -841,7 +922,7 @@ export default function AptitudeAssessment() {
                     const category = question?.category;
                     const info = categoryInfo[category];
                     const IconComponent = info?.icon || Brain;
-                    
+
                     return (
                       <span className={`px-3 py-1 rounded-full text-sm font-medium flex items-center ${getCategoryColor(category)}`}>
                         <IconComponent className="w-4 h-4 mr-1" />
@@ -869,11 +950,10 @@ export default function AptitudeAssessment() {
                   <button
                     key={index}
                     onClick={() => handleSelect(index)}
-                    className={`w-full text-left p-4 border-2 rounded-lg transition-all ${
-                      userAnswers[currentQuestionIndex] === index
-                        ? 'border-blue-500 bg-blue-50'
-                        : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
-                    }`}
+                    className={`w-full text-left p-4 border-2 rounded-lg transition-all ${userAnswers[currentQuestionIndex] === index
+                      ? 'border-blue-500 bg-blue-50'
+                      : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                      }`}
                   >
                     <span className="font-medium text-gray-700 mr-3">
                       {String.fromCharCode(65 + index)}.
@@ -900,12 +980,11 @@ export default function AptitudeAssessment() {
                   <button
                     key={i}
                     onClick={() => setCurrentQuestionIndex(i)}
-                    className={`w-8 h-8 rounded text-sm font-medium flex-shrink-0 ${
-                      userAnswers[i] !== undefined ? 'bg-green-100 text-green-800' :
+                    className={`w-8 h-8 rounded text-sm font-medium flex-shrink-0 ${userAnswers[i] !== undefined ? 'bg-green-100 text-green-800' :
                       markedForReview.includes(i) ? 'bg-yellow-100 text-yellow-800' :
-                      i === currentQuestionIndex ? 'bg-blue-100 text-blue-800' :
-                      'bg-gray-100 text-gray-600'
-                    }`}
+                        i === currentQuestionIndex ? 'bg-blue-100 text-blue-800' :
+                          'bg-gray-100 text-gray-600'
+                      }`}
                   >
                     {i + 1}
                   </button>

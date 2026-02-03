@@ -1098,17 +1098,340 @@ Make problems practical and interview-relevant. Ensure variety across selected c
   const allTestsPassed = testResults.length > 0 && testResults.every(r => r.passed);
 
   if (isCompleted) {
+    // Calculate comprehensive statistics
+    const totalQuestions = questions.length;
+    const solvedQuestions = completedQuestions.length;
+    const solvedPercentage = Math.round((solvedQuestions / totalQuestions) * 100);
+
+    // Category-wise performance
+    const categoryStats = {};
+    questions.forEach((q) => {
+      const category = q.category;
+      if (!categoryStats[category]) {
+        categoryStats[category] = { total: 0, solved: 0 };
+      }
+      categoryStats[category].total++;
+      if (completedQuestions.includes(q.id)) {
+        categoryStats[category].solved++;
+      }
+    });
+
+    // Difficulty-wise performance
+    const difficultyStats = { easy: { total: 0, solved: 0 }, medium: { total: 0, solved: 0 }, hard: { total: 0, solved: 0 } };
+    questions.forEach((q) => {
+      const diff = q.difficulty?.toLowerCase() || 'medium';
+      if (difficultyStats[diff]) {
+        difficultyStats[diff].total++;
+        if (completedQuestions.includes(q.id)) {
+          difficultyStats[diff].solved++;
+        }
+      }
+    });
+
+    // Language usage
+    const languageUsage = {};
+    Object.values(answers).forEach((answerObj: any) => {
+      Object.keys(answerObj).forEach((lang) => {
+        languageUsage[lang] = (languageUsage[lang] || 0) + 1;
+      });
+    });
+
+    // Time spent
+    const initialTime = 45 * 60;
+    const timeSpent = initialTime - timeLeft;
+    const timeSpentMinutes = Math.floor(timeSpent / 60);
+    const avgTimePerQuestion = solvedQuestions > 0 ? Math.floor(timeSpent / solvedQuestions / 60) : 0;
+
+    // Performance rating
+    const getRating = (percentage: number) => {
+      if (percentage >= 80) return { text: 'Excellent', color: 'text-green-600', bgColor: 'bg-green-50' };
+      if (percentage >= 60) return { text: 'Good', color: 'text-blue-600', bgColor: 'bg-blue-50' };
+      if (percentage >= 40) return { text: 'Average', color: 'text-yellow-600', bgColor: 'bg-yellow-50' };
+      return { text: 'Needs Improvement', color: 'text-red-600', bgColor: 'bg-red-50' };
+    };
+
+    const performanceRating = getRating(solvedPercentage);
+
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 flex items-center justify-center p-6">
-        <div className="max-w-2xl w-full bg-white rounded-2xl shadow-lg border p-8 text-center">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-green-100 rounded-full mb-4">
-            <CheckCircle className="w-8 h-8 text-green-600" />
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 p-6">
+        <div className="max-w-6xl mx-auto">
+          {/* Header */}
+          <div className="bg-white rounded-2xl shadow-lg border p-8 mb-6">
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <div className="flex items-center mb-2">
+                  <CheckCircle className="w-10 h-10 text-green-600 mr-3" />
+                  <h1 className="text-3xl font-bold text-gray-900">DSA Assessment Complete!</h1>
+                </div>
+                <p className="text-gray-600">Comprehensive performance analysis of your coding assessment</p>
+              </div>
+              <div className={`px-6 py-3 rounded-xl ${performanceRating.bgColor}`}>
+                <p className="text-sm text-gray-600 mb-1">Overall Performance</p>
+                <p className={`text-2xl font-bold ${performanceRating.color}`}>{performanceRating.text}</p>
+              </div>
+            </div>
+
+            {/* Score Overview */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-lg p-4 border border-purple-200">
+                <p className="text-sm text-purple-700 mb-1">Questions Solved</p>
+                <p className="text-3xl font-bold text-purple-900">{solvedQuestions}/{totalQuestions}</p>
+              </div>
+              <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg p-4 border border-blue-200">
+                <p className="text-sm text-blue-700 mb-1">Success Rate</p>
+                <p className="text-3xl font-bold text-blue-900">{solvedPercentage}%</p>
+              </div>
+              <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-lg p-4 border border-green-200">
+                <p className="text-sm text-green-700 mb-1">Time Spent</p>
+                <p className="text-3xl font-bold text-green-900">{timeSpentMinutes}m</p>
+              </div>
+              <div className="bg-gradient-to-br from-orange-50 to-orange-100 rounded-lg p-4 border border-orange-200">
+                <p className="text-sm text-orange-700 mb-1">Avg Time/Question</p>
+                <p className="text-3xl font-bold text-orange-900">{avgTimePerQuestion}m</p>
+              </div>
+            </div>
           </div>
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">DSA Assessment Complete!</h1>
-          <p className="text-gray-600 mb-4">
-            You've completed {completedQuestions.length} out of {questions.length} questions.
-          </p>
-          <p className="text-sm text-gray-500">Redirecting to results page...</p>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+            {/* Category Performance */}
+            <div className="bg-white rounded-xl shadow-lg border p-6">
+              <div className="flex items-center mb-4">
+                <BarChart3 className="w-6 h-6 text-blue-600 mr-2" />
+                <h2 className="text-xl font-bold text-gray-900">Category Performance</h2>
+              </div>
+              <div className="space-y-3">
+                {Object.entries(categoryStats).map(([category, stats]: [string, any]) => {
+                  const percentage = stats.total > 0 ? Math.round((stats.solved / stats.total) * 100) : 0;
+                  const categoryInfo = dsaCategories[category];
+                  const IconComponent = categoryInfo?.icon || Code;
+
+                  return (
+                    <div key={category} className="border border-gray-200 rounded-lg p-3">
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center">
+                          <IconComponent className="w-4 h-4 mr-2 text-blue-600" />
+                          <span className="font-medium text-gray-900 text-sm">{categoryInfo?.name || category}</span>
+                        </div>
+                        <span className="text-sm font-medium text-gray-600">{stats.solved}/{stats.total}</span>
+                      </div>
+                      <div className="w-full bg-gray-200 rounded-full h-2">
+                        <div
+                          className={`h-2 rounded-full ${percentage >= 80 ? 'bg-green-500' :
+                              percentage >= 60 ? 'bg-blue-500' :
+                                percentage >= 40 ? 'bg-yellow-500' : 'bg-red-500'
+                            }`}
+                          style={{ width: `${percentage}%` }}
+                        ></div>
+                      </div>
+                      <p className="text-xs text-gray-500 mt-1">{percentage}% completion</p>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Difficulty Analysis */}
+            <div className="bg-white rounded-xl shadow-lg border p-6">
+              <div className="flex items-center mb-4">
+                <Target className="w-6 h-6 text-blue-600 mr-2" />
+                <h2 className="text-xl font-bold text-gray-900">Difficulty Breakdown</h2>
+              </div>
+              <div className="space-y-4">
+                {Object.entries(difficultyStats).map(([level, stats]: [string, any]) => {
+                  if (stats.total === 0) return null;
+                  const percentage = Math.round((stats.solved / stats.total) * 100);
+                  const colors = {
+                    easy: { bg: 'bg-green-100', text: 'text-green-800', bar: 'bg-green-500' },
+                    medium: { bg: 'bg-yellow-100', text: 'text-yellow-800', bar: 'bg-yellow-500' },
+                    hard: { bg: 'bg-red-100', text: 'text-red-800', bar: 'bg-red-500' }
+                  };
+                  const color = colors[level] || colors.medium;
+
+                  return (
+                    <div key={level}>
+                      <div className="flex items-center justify-between mb-2">
+                        <span className={`px-3 py-1 rounded-full text-sm font-medium ${color.bg} ${color.text} capitalize`}>
+                          {level}
+                        </span>
+                        <span className="text-2xl font-bold text-gray-900">{stats.solved}/{stats.total}</span>
+                      </div>
+                      <div className="w-full bg-gray-200 rounded-full h-3">
+                        <div
+                          className={`h-3 rounded-full ${color.bar}`}
+                          style={{ width: `${percentage}%` }}
+                        ></div>
+                      </div>
+                      <p className="text-xs text-gray-500 mt-1">{percentage}% solved</p>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+
+          {/* Language & Insights */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+            {/* Language Usage */}
+            <div className="bg-white rounded-xl shadow-lg border p-6">
+              <div className="flex items-center mb-4">
+                <Code className="w-6 h-6 text-blue-600 mr-2" />
+                <h2 className="text-xl font-bold text-gray-900">Language Usage</h2>
+              </div>
+              {Object.keys(languageUsage).length > 0 ? (
+                <div className="space-y-3">
+                  {Object.entries(languageUsage)
+                    .sort(([, a]: any, [, b]: any) => b - a)
+                    .map(([lang, count]: [string, any]) => {
+                      const maxCount = Math.max(...Object.values(languageUsage));
+                      const width = (count / maxCount) * 100;
+
+                      return (
+                        <div key={lang}>
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="text-sm font-medium text-gray-700 capitalize">{lang}</span>
+                            <span className="text-sm text-gray-600">{count} solution{count > 1 ? 's' : ''}</span>
+                          </div>
+                          <div className="w-full bg-gray-200 rounded-full h-2">
+                            <div
+                              className="bg-blue-600 h-2 rounded-full"
+                              style={{ width: `${width}%` }}
+                            ></div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                </div>
+              ) : (
+                <p className="text-gray-500 text-center py-8">No language data available</p>
+              )}
+            </div>
+
+            {/* Key Insights */}
+            <div className="bg-white rounded-xl shadow-lg border p-6">
+              <div className="flex items-center mb-4">
+                <Brain className="w-6 h-6 text-blue-600 mr-2" />
+                <h2 className="text-xl font-bold text-gray-900">Key Insights</h2>
+              </div>
+              <div className="space-y-3">
+                {solvedPercentage >= 70 && (
+                  <div className="flex items-start bg-green-50 border border-green-200 rounded-lg p-3">
+                    <CheckCircle className="w-5 h-5 text-green-600 mr-2 mt-0.5" />
+                    <div>
+                      <p className="text-sm font-medium text-green-900">Strong Performance</p>
+                      <p className="text-xs text-green-700">You solved {solvedPercentage}% of problems successfully!</p>
+                    </div>
+                  </div>
+                )}
+
+                {avgTimePerQuestion < 10 && solvedQuestions > 0 && (
+                  <div className="flex items-start bg-blue-50 border border-blue-200 rounded-lg p-3">
+                    <Zap className="w-5 h-5 text-blue-600 mr-2 mt-0.5" />
+                    <div>
+                      <p className="text-sm font-medium text-blue-900">Quick Problem Solver</p>
+                      <p className="text-xs text-blue-700">Average {avgTimePerQuestion} minutes per question</p>
+                    </div>
+                  </div>
+                )}
+
+                {Object.keys(languageUsage).length > 1 && (
+                  <div className="flex items-start bg-purple-50 border border-purple-200 rounded-lg p-3">
+                    <Code className="w-5 h-5 text-purple-600 mr-2 mt-0.5" />
+                    <div>
+                      <p className="text-sm font-medium text-purple-900">Multi-Language Proficiency</p>
+                      <p className="text-xs text-purple-700">Used {Object.keys(languageUsage).length} different programming languages</p>
+                    </div>
+                  </div>
+                )}
+
+                {difficultyStats.hard.solved > 0 && (
+                  <div className="flex items-start bg-orange-50 border border-orange-200 rounded-lg p-3">
+                    <Target className="w-5 h-5 text-orange-600 mr-2 mt-0.5" />
+                    <div>
+                      <p className="text-sm font-medium text-orange-900">Tackled Hard Problems</p>
+                      <p className="text-xs text-orange-700">Solved {difficultyStats.hard.solved} hard-level questions</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Recommendations */}
+          <div className="bg-white rounded-xl shadow-lg border p-6 mb-6">
+            <div className="flex items-center mb-4">
+              <Brain className="w-6 h-6 text-blue-600 mr-2" />
+              <h2 className="text-xl font-bold text-gray-900">Recommendations for Improvement</h2>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Weak Categories */}
+              {Object.entries(categoryStats)
+                .filter(([, stats]: [string, any]) => stats.total > 0 && (stats.solved / stats.total) < 0.5)
+                .slice(0, 2)
+                .map(([category]) => {
+                  const categoryInfo = dsaCategories[category];
+                  return (
+                    <div key={category} className="border border-yellow-200 bg-yellow-50 rounded-lg p-4">
+                      <p className="font-medium text-yellow-900 mb-2">Focus on {categoryInfo?.name || category}</p>
+                      <p className="text-sm text-yellow-700">Practice more problems in this category to improve your skills</p>
+                      {categoryInfo?.topics && (
+                        <div className="mt-2 flex flex-wrap gap-1">
+                          {categoryInfo.topics.slice(0, 3).map((topic, idx) => (
+                            <span key={idx} className="text-xs px-2 py-1 bg-yellow-200 text-yellow-800 rounded">
+                              {topic}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+
+              {solvedPercentage < 80 && (
+                <div className="border border-blue-200 bg-blue-50 rounded-lg p-4">
+                  <p className="font-medium text-blue-900 mb-2">Practice Time Complexity</p>
+                  <p className="text-sm text-blue-700">Focus on optimizing your solutions for better time and space complexity</p>
+                </div>
+              )}
+
+              {avgTimePerQuestion > 15 && (
+                <div className="border border-purple-200 bg-purple-50 rounded-lg p-4">
+                  <p className="font-medium text-purple-900 mb-2">Improve Speed</p>
+                  <p className="text-sm text-purple-700">Try solving problems faster through regular practice and pattern recognition</p>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Action Buttons */}
+          <div className="flex flex-col sm:flex-row gap-4">
+            <button
+              onClick={() => window.location.href = '/results'}
+              className="flex-1 bg-blue-600 hover:bg-blue-700 text-white px-6 py-4 rounded-lg font-medium transition-colors flex items-center justify-center"
+            >
+              <FileText className="w-5 h-5 mr-2" />
+              View Full Report
+            </button>
+            <button
+              onClick={() => {
+                setIsCompleted(false);
+                setShowSetup(true);
+                setCompletedQuestions([]);
+                setAnswers({});
+                setCurrentQuestionIndex(0);
+              }}
+              className="flex-1 border-2 border-gray-300 hover:border-gray-400 text-gray-700 px-6 py-4 rounded-lg font-medium transition-colors flex items-center justify-center"
+            >
+              <RotateCcw className="w-5 h-5 mr-2" />
+              Take Another Assessment
+            </button>
+            <button
+              onClick={() => window.location.href = '/dashboard'}
+              className="flex-1 border-2 border-gray-300 hover:border-gray-400 text-gray-700 px-6 py-4 rounded-lg font-medium transition-colors flex items-center justify-center"
+            >
+              <ChevronLeft className="w-5 h-5 mr-2" />
+              Back to Dashboard
+            </button>
+          </div>
         </div>
       </div>
     );
