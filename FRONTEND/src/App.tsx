@@ -1,5 +1,6 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { GoogleOAuthProvider } from '@react-oauth/google';
 import { AppProvider, useApp } from './contexts/AppContext';
 import Layout from './components/Layout';
 import Landing from './pages/Landing';
@@ -133,10 +134,14 @@ function AppContent() {
 }
 
 function App() {
+  const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID || '1071725358461-c9s9vpqcj1dfpp4nbjm4cvb68llvn46k.apps.googleusercontent.com';
+
   return (
-    <AppProvider>
-      <AppContent />
-    </AppProvider>
+    <GoogleOAuthProvider clientId={googleClientId}>
+      <AppProvider>
+        <AppContent />
+      </AppProvider>
+    </GoogleOAuthProvider>
   );
 }
 
