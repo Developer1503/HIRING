@@ -391,6 +391,39 @@ export default function AptitudeAssessment() {
     }
   }, [testMode, timeLeft, submitted]);
 
+  // Keyboard input for calculator
+  useEffect(() => {
+    if (!showCalculator) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Prevent default behavior for calculator keys
+      const calculatorKeys = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '+', '-', '*', '/', '.', 'Enter', 'Escape', 'Backspace', 'c', 'C'];
+      if (calculatorKeys.includes(e.key)) {
+        e.preventDefault();
+      }
+
+      // Map keyboard keys to calculator actions
+      if (e.key >= '0' && e.key <= '9') {
+        handleCalculatorClick(e.key);
+      } else if (['+', '-', '*', '/'].includes(e.key)) {
+        handleCalculatorClick(e.key);
+      } else if (e.key === '.') {
+        handleCalculatorClick('.');
+      } else if (e.key === 'Enter') {
+        handleCalculatorClick('=');
+      } else if (e.key === 'Escape') {
+        setShowCalculator(false);
+      } else if (e.key === 'Backspace') {
+        handleCalculatorClick('←');
+      } else if (e.key === 'c' || e.key === 'C') {
+        handleCalculatorClick('C');
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [showCalculator]);
+
   const generateQuestions = () => {
     const enabledCategories = Object.entries(selectedCategories)
       .filter(([_, enabled]) => enabled)
@@ -864,7 +897,7 @@ export default function AptitudeAssessment() {
           {showCalculator && (
             <div className="fixed inset-0 bg-black bg-opacity-50 flex items-start justify-end pt-20 pr-6 z-50" onClick={() => setShowCalculator(false)}>
               <div className="bg-white rounded-2xl shadow-2xl p-6 w-80" onClick={(e) => e.stopPropagation()}>
-                <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center justify-between mb-2">
                   <h3 className="text-lg font-semibold text-gray-900 flex items-center">
                     <Calculator className="w-5 h-5 mr-2 text-blue-600" />
                     Calculator
@@ -876,6 +909,9 @@ export default function AptitudeAssessment() {
                     <X className="w-5 h-5" />
                   </button>
                 </div>
+                <p className="text-xs text-gray-500 mb-4">
+                  💡 Tip: Use your keyboard! Press <kbd className="px-1 py-0.5 bg-gray-200 rounded text-xs">Esc</kbd> to close
+                </p>
 
                 {/* Display */}
                 <div className="bg-gray-100 rounded-lg p-4 mb-4 border-2 border-gray-200">
@@ -886,7 +922,7 @@ export default function AptitudeAssessment() {
 
                 {/* Buttons */}
                 <div className="grid grid-cols-4 gap-2">
-                  {[['C', '←', '/', '*'], ['7', '8', '9', '-'], ['4', '5', '6', '+'], ['1', '2', '3', '='], ['0', '.', '00', '=']].map((row, i) => (
+                  {[['C', '←', '/', '*'], ['7', '8', '9', '-'], ['4', '5', '6', '+'], ['1', '2', '3', '00'], ['0', '.', '=']].map((row, i) => (
                     <React.Fragment key={i}>
                       {row.map((btn) => (
                         <button
@@ -894,7 +930,7 @@ export default function AptitudeAssessment() {
                           onClick={() => handleCalculatorClick(btn)}
                           className={`
                             p-3 rounded-lg font-semibold text-lg transition-all active:scale-95
-                            ${btn === '=' ? 'bg-blue-600 text-white hover:bg-blue-700 col-span-1' :
+                            ${btn === '=' ? 'bg-blue-600 text-white hover:bg-blue-700 col-span-2' :
                               btn === 'C' ? 'bg-red-500 text-white hover:bg-red-600' :
                                 ['/', '*', '-', '+'].includes(btn) ? 'bg-orange-500 text-white hover:bg-orange-600' :
                                   btn === '←' ? 'bg-yellow-500 text-white hover:bg-yellow-600' :
