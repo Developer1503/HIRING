@@ -1,25 +1,103 @@
-import React, { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useApp } from '../contexts/AppContext';
 import {
   Clock, Play, RotateCcw, Send, ChevronLeft, ChevronRight, Code, CheckCircle,
-  XCircle, AlertCircle, Brain, Target, Shuffle, Settings, Database, TreePine,
-  GitBranch, Layers, Zap, Hash, Search, BarChart3, Network, Cpu, FileText
+  XCircle, AlertCircle, Brain, Target, Shuffle, Database, TreePine,
+  GitBranch, Layers, Zap, Hash, Search, BarChart3, Network, Cpu, FileText,
+  type LucideIcon
 } from 'lucide-react';
 
-function CodeEditor({ value, onChange }) {
-  const textareaRef = useRef(null);
-  const [lineNumbers, setLineNumbers] = useState([]);
+// ─── Type Definitions ───────────────────────────────────────────────────────
+
+interface DSAExample {
+  input: string;
+  output: string;
+}
+
+interface DSATestCase {
+  input: Record<string, any>;
+  expected: any;
+}
+
+interface DSAQuestion {
+  id: number;
+  category: string;
+  title: string;
+  difficulty: string;
+  tags: string[];
+  statement: string;
+  examples: DSAExample[];
+  constraints?: string[];
+  templates?: Record<string, string>;
+  testCases: DSATestCase[];
+}
+
+interface TestResult {
+  caseNumber: number;
+  passed: boolean;
+  error?: string;
+  input?: any;
+  output?: any;
+  expected?: any;
+  executionTime?: number;
+}
+
+interface AIValidation {
+  score: number;
+  feedback: string;
+  timeComplexity: string;
+  spaceComplexity: string;
+  strengths: string[];
+  improvements: string[];
+}
+
+interface LanguageConfig {
+  name: string;
+  extension: string;
+  template: string;
+  executable: boolean;
+}
+
+interface DSACategoryInfo {
+  name: string;
+  icon: LucideIcon;
+  description: string;
+  topics: string[];
+}
+
+interface CodeEditorProps {
+  value: string;
+  onChange: (value: string) => void;
+}
+
+interface CategorySelectedState {
+  [key: string]: boolean;
+}
+
+interface ExecutionResult {
+  success: boolean;
+  result?: any;
+  error?: string;
+  executionTime?: number;
+}
+
+// ─── CodeEditor Component ───────────────────────────────────────────────────
+
+function CodeEditor({ value, onChange }: CodeEditorProps) {
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const [lineNumbers, setLineNumbers] = useState<number[]>([]);
 
   useEffect(() => {
     const lines = value.split('\n').length;
     setLineNumbers(Array.from({ length: lines }, (_, i) => i + 1));
   }, [value]);
 
-  const handleKeyDown = (e) => {
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Tab') {
       e.preventDefault();
-      const start = e.target.selectionStart;
-      const end = e.target.selectionEnd;
+      const target = e.target as HTMLTextAreaElement;
+      const start = target.selectionStart;
+      const end = target.selectionEnd;
       const newValue = value.substring(0, start) + '  ' + value.substring(end);
       onChange(newValue);
       setTimeout(() => {
@@ -54,21 +132,21 @@ function CodeEditor({ value, onChange }) {
 export default function DSAAssessment() {
   const { state, dispatch } = useApp();
   const [showSetup, setShowSetup] = useState(true);
-  const [questions, setQuestions] = useState([]);
+  const [questions, setQuestions] = useState<DSAQuestion[]>([]);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [code, setCode] = useState('');
   const [language, setLanguage] = useState('javascript');
   const [timeLeft, setTimeLeft] = useState(45 * 60);
   const [showOutput, setShowOutput] = useState(false);
-  const [testResults, setTestResults] = useState([]);
-  const [completedQuestions, setCompletedQuestions] = useState([]);
-  const [answers, setAnswers] = useState({});
+  const [testResults, setTestResults] = useState<TestResult[]>([]);
+  const [completedQuestions, setCompletedQuestions] = useState<number[]>([]);
+  const [answers, setAnswers] = useState<Record<number, Record<string, string>>>({});
   const [isRunning, setIsRunning] = useState(false);
   const [difficulty, setDifficulty] = useState('mixed');
   const [questionCount, setQuestionCount] = useState(5);
   const [isCompleted, setIsCompleted] = useState(false);
-  const [aiValidation, setAiValidation] = useState(null);
-  const [selectedCategories, setSelectedCategories] = useState({
+  const [aiValidation, setAiValidation] = useState<AIValidation | null>(null);
+  const [selectedCategories, setSelectedCategories] = useState<CategorySelectedState>({
     arrays: true,
     strings: true,
     linkedLists: false,
@@ -88,7 +166,7 @@ export default function DSAAssessment() {
   const [generatingRandom, setGeneratingRandom] = useState(false);
 
   // DSA Category definitions with comprehensive subtypes
-  const dsaCategories = {
+  const dsaCategories: Record<string, DSACategoryInfo> = {
     arrays: {
       name: "Arrays & Matrix",
       icon: Database,
@@ -176,7 +254,7 @@ export default function DSAAssessment() {
   };
 
   // Language configurations with proper syntax highlighting and execution
-  const languageConfigs = {
+  const languageConfigs: Record<string, LanguageConfig> = {
     javascript: {
       name: "JavaScript",
       extension: "js",
@@ -230,7 +308,7 @@ export default function DSAAssessment() {
   const currentQuestion = questions[currentQuestionIndex];
 
   // Comprehensive DSA question bank organized by categories
-  const dsaQuestionBank = {
+  const dsaQuestionBank: Record<string, DSAQuestion[]> = {
     arrays: [
       {
         id: 1,
@@ -536,7 +614,7 @@ Make problems practical and interview-relevant. Ensure variety across selected c
       const generatedQuestions = JSON.parse(jsonText);
 
       // Add templates for each language
-      const questionsWithTemplates = generatedQuestions.map(q => ({
+      const questionsWithTemplates = generatedQuestions.map((q: DSAQuestion) => ({
         ...q,
         templates: Object.fromEntries(
           Object.entries(languageConfigs).map(([lang, config]) => [
@@ -574,7 +652,7 @@ Make problems practical and interview-relevant. Ensure variety across selected c
       return;
     }
 
-    let allQuestions = [];
+    let allQuestions: DSAQuestion[] = [];
     enabledCategories.forEach(category => {
       const categoryQuestions = dsaQuestionBank[category] || [];
       allQuestions = [...allQuestions, ...categoryQuestions];
@@ -611,7 +689,7 @@ Make problems practical and interview-relevant. Ensure variety across selected c
     });
   };
 
-  const validateSolution = (userCode, question) => {
+  const validateSolution = (_userCode: string, _question: DSAQuestion): AIValidation => {
     const allPassed = testResults.every(r => r.passed);
     const score = allPassed ? 100 : Math.round((testResults.filter(r => r.passed).length / testResults.length) * 100);
 
@@ -626,10 +704,10 @@ Make problems practical and interview-relevant. Ensure variety across selected c
   };
 
   // Language-specific code execution using Piston API
-  const executeCodeWithPiston = async (code, testCase, language) => {
+  const executeCodeWithPiston = async (code: string, testCase: DSATestCase, language: string): Promise<ExecutionResult> => {
     try {
       // Map our language names to Piston language identifiers
-      const languageMap = {
+      const languageMap: Record<string, { language: string; version: string }> = {
         javascript: { language: 'javascript', version: '18.15.0' },
         python: { language: 'python', version: '3.10.0' },
         java: { language: 'java', version: '15.0.2' },
@@ -719,13 +797,13 @@ Make problems practical and interview-relevant. Ensure variety across selected c
       }
 
       return { success: true, result, executionTime: data.run.time };
-    } catch (error) {
-      return { success: false, error: error.message };
+    } catch (error: unknown) {
+      return { success: false, error: error instanceof Error ? error.message : String(error) };
     }
   };
 
   // Fallback local execution for JavaScript
-  const executeCodeLocally = (code, testCase) => {
+  const executeCodeLocally = (code: string, testCase: DSATestCase): ExecutionResult => {
     try {
       if (language === 'javascript') {
         const functionMatch = code.match(/function\s+(\w+)/);
@@ -742,12 +820,12 @@ Make problems practical and interview-relevant. Ensure variety across selected c
       } else {
         throw new Error('Local execution only supports JavaScript');
       }
-    } catch (error) {
-      return { success: false, error: error.message };
+    } catch (error: unknown) {
+      return { success: false, error: error instanceof Error ? error.message : String(error) };
     }
   };
 
-  const arraysEqual = (a, b) => {
+  const arraysEqual = (a: any[], b: any[]): boolean => {
     if (a === b) return true;
     if (!a || !b || a.length !== b.length) return false;
     const sortedA = [...a].sort((x, y) => x - y);
@@ -875,19 +953,19 @@ Make problems practical and interview-relevant. Ensure variety across selected c
     setAiValidation(validation);
   };
 
-  const formatTime = (seconds) => {
+  const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
-  const getDifficultyColor = (difficulty) => {
-    const colors = {
+  const getDifficultyColor = (difficulty: string | undefined) => {
+    const colors: Record<string, string> = {
       easy: 'bg-green-100 text-green-800',
       medium: 'bg-yellow-100 text-yellow-800',
       hard: 'bg-red-100 text-red-800'
     };
-    return colors[difficulty?.toLowerCase()] || 'bg-gray-100 text-gray-800';
+    return colors[difficulty?.toLowerCase() || ''] || 'bg-gray-100 text-gray-800';
   };
 
   const saveAssessmentResults = () => {
@@ -895,7 +973,7 @@ Make problems practical and interview-relevant. Ensure variety across selected c
     const solvedQuestions = completedQuestions.length;
     const solvedPercentage = Math.round((solvedQuestions / totalQuestions) * 100);
 
-    const categoryStats = {};
+    const categoryStats: Record<string, { total: number; solved: number; name: string }> = {};
     questions.forEach((q) => {
       const category = q.category;
       if (!categoryStats[category]) {
@@ -918,7 +996,7 @@ Make problems practical and interview-relevant. Ensure variety across selected c
       }
     });
 
-    const languageUsage = {};
+    const languageUsage: Record<string, number> = {};
     Object.values(answers).forEach((answerObj: any) => {
       Object.keys(answerObj).forEach((lang) => {
         languageUsage[lang] = (languageUsage[lang] || 0) + 1;
@@ -1175,7 +1253,7 @@ Make problems practical and interview-relevant. Ensure variety across selected c
     const solvedPercentage = Math.round((solvedQuestions / totalQuestions) * 100);
 
     // Category-wise performance
-    const categoryStats = {};
+    const categoryStats: Record<string, { total: number; solved: number }> = {};
     questions.forEach((q) => {
       const category = q.category;
       if (!categoryStats[category]) {
@@ -1200,7 +1278,7 @@ Make problems practical and interview-relevant. Ensure variety across selected c
     });
 
     // Language usage
-    const languageUsage = {};
+    const languageUsage: Record<string, number> = {};
     Object.values(answers).forEach((answerObj: any) => {
       Object.keys(answerObj).forEach((lang) => {
         languageUsage[lang] = (languageUsage[lang] || 0) + 1;
@@ -1311,7 +1389,7 @@ Make problems practical and interview-relevant. Ensure variety across selected c
                 {Object.entries(difficultyStats).map(([level, stats]: [string, any]) => {
                   if (stats.total === 0) return null;
                   const percentage = Math.round((stats.solved / stats.total) * 100);
-                  const colors = {
+                  const colors: Record<string, { bg: string; text: string; bar: string }> = {
                     easy: { bg: 'bg-green-100', text: 'text-green-800', bar: 'bg-green-500' },
                     medium: { bg: 'bg-yellow-100', text: 'text-yellow-800', bar: 'bg-yellow-500' },
                     hard: { bg: 'bg-red-100', text: 'text-red-800', bar: 'bg-red-500' }
@@ -1353,7 +1431,7 @@ Make problems practical and interview-relevant. Ensure variety across selected c
                   {Object.entries(languageUsage)
                     .sort(([, a]: any, [, b]: any) => b - a)
                     .map(([lang, count]: [string, any]) => {
-                      const maxCount = Math.max(...Object.values(languageUsage));
+                      const maxCount = Math.max(...Object.values(languageUsage) as number[]);
                       const width = (count / maxCount) * 100;
 
                       return (
@@ -1446,7 +1524,7 @@ Make problems practical and interview-relevant. Ensure variety across selected c
                       <p className="text-sm text-yellow-700">Practice more problems in this category to improve your skills</p>
                       {categoryInfo?.topics && (
                         <div className="mt-2 flex flex-wrap gap-1">
-                          {categoryInfo.topics.slice(0, 3).map((topic, idx) => (
+                          {categoryInfo.topics.slice(0, 3).map((topic: string, idx: number) => (
                             <span key={idx} className="text-xs px-2 py-1 bg-yellow-200 text-yellow-800 rounded">
                               {topic}
                             </span>
